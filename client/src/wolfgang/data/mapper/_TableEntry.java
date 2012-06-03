@@ -1,4 +1,4 @@
-package wolfgang.data;
+package wolfgang.data.mapper;
 
 public abstract class _TableEntry {
 	private boolean isModified = false;
@@ -10,5 +10,4 @@ public abstract class _TableEntry {
 	public void setModified() {
 		this.isModified = true;
 	}
-	
 }
