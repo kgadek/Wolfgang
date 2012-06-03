@@ -6,8 +6,10 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -36,9 +38,9 @@ public class DataMaster {
 		loadData();
 	}
 	
-	private HashMap<Integer, User> users = new HashMap<Integer, User>();
-	private HashMap<Integer, Category> categories = new HashMap<Integer, Category>();
-	private HashMap<Integer, Operation> operations = new HashMap<Integer, Operation>();
+	private ConcurrentHashMap<Integer, User> users = new ConcurrentHashMap<Integer, User>();
+	private ConcurrentHashMap<Integer, Operation> operations = new ConcurrentHashMap<Integer, Operation>();
+	private ConcurrentHashMap<Integer, Category> categories = new ConcurrentHashMap<Integer, Category>();
 	
 	public void loadData() throws SQLException, NoSuchAlgorithmException {
 		
@@ -80,11 +82,19 @@ public class DataMaster {
 						logger.log(Level.SEVERE, "Skipping row");
 						continue;
 					}
+					User newOpUsr = users.get(rs.getInt("UserId"));
+					if(newOpUsr == null) {
+						logger.log(Level.SEVERE, "Database error");
+						logger.log(Level.SEVERE, "Operation (id="+rs.getInt("Id")+") has unknown user (userId="+rs.getInt("UserId")+")");
+						logger.log(Level.SEVERE, "Skipping row");
+						continue;
+					}
 					Integer newOpGId = null;
 					if(rs.getInt("GroupId") != 0)
 						newOpGId = rs.getInt("GroupId");
-					Operation newOp = new Operation(rs.getInt("Id"), rs.getInt("Balance"), newOpCat, newOpGId, new Date(rs.getInt("DateStart")),
-							rs.getInt("Repetitions"), new Date(rs.getInt("RepetitionDiff")), rs.getInt("Completed"));
+					Operation newOp = new Operation(rs.getInt("Id"), newOpUsr, newOpCat, rs.getInt("Balance"), newOpGId,
+							new Date(rs.getInt("DateStart")), rs.getInt("Repetitions"), new Date(rs.getInt("RepetitionDiff")),
+							rs.getInt("Completed"));
 					operations.put(rs.getInt("Id"), newOp);
 				}
 			} finally { if(rs!=null) rs.close(); }
@@ -97,7 +107,6 @@ public class DataMaster {
 	}
 	
 	public void saveData() {
-		
 	}
 	
 	public static void main(String args[]) throws Exception {
@@ -107,17 +116,35 @@ public class DataMaster {
 		DataMaster.getInstance();
 	}
 	
-	public User addUser(User u) {
-		throw new NotImplementedException();
+	public User addUser(User u) throws SQLException {
+		User ret = new User(u);
+		Statement stat = null;
+		try {
+		} finally { if(stat != null) stat.close(); }
+		return ret;
 	}
 	public User modUser(User u) {
-		throw new NotImplementedException();
+		if(!users.containsKey(u))
+			throw new NullPointerException();
+		User ret = new User(u);
+		ret.setModified();
+		users.put(u.id, ret);
+		return ret;
 	}
 	public User delUser(User u) {
-		throw new NotImplementedException();
+		if(!users.containsKey(u))
+			throw new NullPointerException();
+		User ret = users.get(u.id);
+		ret.setDeleted();
+		users.put(u.id, ret);
+		return ret;
 	}
-	public User[] getUsers() {
-		return (User[]) users.values().toArray();
+	public List<User> getUsers() {
+		List<User> ret = new ArrayList<User>(users.size());
+		for(User i : users.values()) 
+			if(!i.isDeleted())
+				ret.add(i);
+		return ret;
 	}
 	
 	public Category addCategory(Category c) {
