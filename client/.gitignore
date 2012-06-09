@@ -1,4 +1,4 @@
 .classpath
 .project
-wolfgang.db
+*.db
 *.log
