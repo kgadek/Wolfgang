@@ -28,10 +28,9 @@ public class DataMaster {
 	public static final String DATABASE_FILE = "wolfgang.db";
 
 	private static final String OPERATIONS_TABLENAME = "Operations";
-	private static final String OPERATIONS_SCHEMA = "(Balance NUMERIC, Id INTEGER PRIMARY KEY, UserId INTEGER, CategoryId INTEGER, GroupId INTEGER, Repetitions INTEGER, RepetitionDiff INTEGER, " + "Completed INTEGER, DateStart integer)";
-	private static final String CATEGORIES_SCHEMA = "(Id INTEGER PRIMARY KEY, Description TEXT, Balance NUMERIC, Accumulator NUMERIC)";
+	private static final String OPERATIONS_SCHEMA = "(Id INTEGER PRIMARY KEY, Balance NUMERIC, UserId INTEGER, CategoryId INTEGER, GroupId INTEGER, Repetitions INTEGER, RepetitionDiff INTEGER, " + "Completed INTEGER, DateStart integer)";
+	private static final String CATEGORIES_SCHEMA = "(Id INTEGER PRIMARY KEY, Description TEXT, Balance NUMERIC)";
 	private static final String CATEGORIES_TABLENAME = "Categories";
-	//TODO LastLogin numeric czy jakiś double ?
 	private static final String USERS_SCHEMA = "(Id integer PRIMARY KEY, Login text, PasswordHash text, LastLogin numeric)";
 	private static final String USERS_TABLENAME = "Users";
 
@@ -92,26 +91,26 @@ public class DataMaster {
 				rs = stat.executeQuery("select * from Users;");
 				while(rs.next()) {
 					User newUser = new User(rs.getInt("Id"), rs.getString("Login"), new Date(rs.getInt("LastLogin")), rs.getString("PasswordHash"));
-					users.put(rs.getInt("Id"), newUser);
+					users.put(newUser.id, newUser);
 				}
 			} finally {
 				if(rs!=null)
 					rs.close();
+				rs = null;
 			}
 
-			rs = null;
 			try {
 				rs = stat.executeQuery("select * from Categories;");
 				while(rs.next()) {
-					Category newCat = new Category(rs.getInt("Id"), rs.getString("Description"), rs.getInt("Balance"), rs.getInt("Accumulator") > 0);
-					categories.put(rs.getInt("Id"), newCat);
+					Category newCat = new Category(rs.getInt("Id"), rs.getString("Description"), rs.getInt("Balance"));
+					categories.put(newCat.id, newCat);
 				}
 			} finally {
 				if(rs!=null)
 					rs.close();
+				rs = null;
 			}
 
-			rs = null;
 			try {
 				rs = stat.executeQuery("select * from Operations;");
 				while(rs.next()) {
@@ -135,9 +134,13 @@ public class DataMaster {
 					Operation newOp = new Operation(rs.getInt("Id"), newOpUsr, newOpCat, rs.getInt("Balance"), newOpGId,
 							new Date(rs.getInt("DateStart")), rs.getInt("Repetitions"), new Date(rs.getInt("RepetitionDiff")),
 							rs.getInt("Completed"));
-					operations.put(rs.getInt("Id"), newOp);
+					operations.put(newOp.id, newOp);
 				}
-			} finally { if(rs!=null) rs.close(); }
+			} finally {
+				if(rs!=null)
+					rs.close();
+				rs = null;
+			}
 
 			logger.info("Users: "+users.size()+" Categories: "+categories.size()+" Operations: "+operations.size());
 
@@ -149,15 +152,164 @@ public class DataMaster {
 
 	public static void main(String args[]) {
 		try {
+			DataMaster dm = DataMaster.getInstance();
+
+			System.out.println("Users:");
+			for(User u : dm.users.values())
+				System.out.println("\t\t"+u);
+			System.out.println("Categories:");
+			for(Category c : dm.categories.values())
+				System.out.println("\t\t"+c);
+			System.out.println("Operations:");
+			for(Operation o : dm.operations.values())
+				System.out.println("\t\t"+o);
+
+			dm.createUser("Konrad", new Date(), "ala123");
+			dm.createCategory("Na auto", 0);
+			dm.createOperation(1, 1, 0, null, new Date(), 0, null, 1);
+
+			System.out.println();
+			System.out.println("====================");
+			System.out.println();
+			
+			System.out.println("Users:");
+			for(User u : dm.users.values())
+				System.out.println("\t\t"+u);
+			System.out.println("Categories:");
+			for(Category c : dm.categories.values())
+				System.out.println("\t\t"+c);
+			System.out.println("Operations:");
+			for(Operation o : dm.operations.values())
+				System.out.println("\t\t"+o);
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	private Operation createOperation(int userId, int categoryId, int balance, Integer groupId, Date dateStart,
+			int repetitions, Date repetitionDiff, int completed) throws SQLException {
+		conn.setAutoCommit(false);
+
+		Operation ret = null;
+		try {
+			PreparedStatement prepInsert = conn.prepareStatement("insert into "+OPERATIONS_TABLENAME+
+					" (Balance, UserId, CategoryId, GroupId, Repetitions, RepetitionDiff, Completed, DateStart)" +
+					" values (?, ?, ?, ?, ?, ?, ?, ?);");
+			PreparedStatement prepSelect = conn.prepareStatement("select last_insert_rowid();");
+
+			prepInsert.addBatch();
+
+			prepInsert.executeBatch();
+			ResultSet rs = prepSelect.executeQuery();
+
+			int newId = 0;
+			while(rs.next())
+				newId = rs.getInt(1);
+			ret = new Operation(newId, users.get(userId), categories.get(categoryId), balance, groupId,
+					dateStart, repetitions, repetitionDiff, completed);
+			operations.put(newId, ret);
+			conn.commit();
+		} catch (SQLException e) {
+			conn.rollback();
+			throw e;
+		} finally {
+			conn.setAutoCommit(true);
+		}
+
+		return ret;
+		
+	}
+
+	private Category createCategory(String description, int balance) throws SQLException {
+		conn.setAutoCommit(false);
+
+		Category ret = null;
+		try {
+			PreparedStatement prepInsert = conn.prepareStatement("insert into "+CATEGORIES_TABLENAME+" (Description, Balance) values (?, ?);");
+			PreparedStatement prepSelect = conn.prepareStatement("select last_insert_rowid();");
+
+			prepInsert.setString(1, description);
+			prepInsert.setInt(2, balance);
+			prepInsert.addBatch();
+
+			prepInsert.executeBatch();
+			ResultSet rs = prepSelect.executeQuery();
+
+			int newId = 0;
+			while(rs.next())
+				newId = rs.getInt(1);
+			ret = new Category(newId, description, balance);
+			categories.put(newId, ret);
+			conn.commit();
+		} catch (SQLException e) {
+			conn.rollback();
+			throw e;
+		} finally {
+			conn.setAutoCommit(true);
+		}
+
+		return ret;
+	}
+
+	public User createUser(String login, Date lastLogin, String password) throws SQLException {
+		conn.setAutoCommit(false);
+
+		User ret = null;
+		try {
+			String passwordHash;
+			passwordHash = null;
+			try {
+				passwordHash = User.genPasswordHash(password, login);
+			} catch (NoSuchAlgorithmException e) {
+				logger.throwing(this.getClass().getName(), "createUser", e);
+				e.printStackTrace();
+				return null;
+			}
+			GregorianCalendar cal = new GregorianCalendar();
+			cal.setTime(lastLogin);
+
+
+			PreparedStatement prepInsert = conn.prepareStatement("insert into "+USERS_TABLENAME+" (Login, PasswordHash, LastLogin) values (?, ?, ?);");
+			PreparedStatement prepSelect = conn.prepareStatement("select last_insert_rowid();");
+
+			prepInsert.setString(1, login);
+			prepInsert.setString(2, passwordHash);
+			prepInsert.setDouble(3, cal.getTimeInMillis());
+			prepInsert.addBatch();
+
+			prepInsert.executeBatch();
+			ResultSet rs = prepSelect.executeQuery();
+
+			int newId = 0;
+			while(rs.next())
+				newId = rs.getInt(1);
+			ret = new User(newId, login, lastLogin, passwordHash);
+			users.put(newId, ret);
+			conn.commit();
+		} catch (SQLException e) {
+			conn.rollback();
+			throw e;
+		} finally {
+			conn.setAutoCommit(true);
+		}
+
+		return ret;
+	}
+
+	@Deprecated
+	public static void mainold(String args[]) {
+		try {
 			logger.entering("-", "main");
 			DataMaster dm = DataMaster.getInstance();
 
 			User u = new User(0, "Konrad", new Date(), "");
 			dm.addUser(u.setPassword("konradek"));
-			
+
 			for(Entry<Integer, User> i : dm.users.entrySet())
 				logger.finest("User #"+i.getKey() + " login="+i.getValue().login);
-			
+
 			dm.modUser(dm.users.get(1).setPassword("konradek"));
 
 			logger.exiting("-", "main");
@@ -167,31 +319,31 @@ public class DataMaster {
 		}
 	}
 
-	public User getUserById(User u) throws SQLException {
+	public User getUserById(int uid) throws SQLException {
 		ResultSet rs = null;
 		try {
 			Statement stat = conn.createStatement();
-			rs = stat.executeQuery("select Id from "+USERS_TABLENAME+" where Id="+u.id+";");
+			rs = stat.executeQuery("select * from "+USERS_TABLENAME+" where Id="+uid+";");
 			while(rs.next())
-				return u.setId(rs.getInt("Id"));
+				return new User(rs.getInt("Id"), rs.getString("Login"), new Date(rs.getLong("LastLogin")), rs.getString("PasswordHash"));
 		} finally {
 			if(rs != null)
 				rs.close();
 		}
 		return null;
 	}
+	@Deprecated
 	public User getUserFromDBByValues(User u) throws SQLException {
 		logger.entering(this.getClass().getName(), "getUserFromDBByValues");
 		ResultSet rs = null;
 		try {
 			Statement stat = conn.createStatement();
-			logger.finer("select Id from Users where Login='"+u.login+"'" +
-					" and PasswordHash='"+u.passwordHash+"';");
-			rs = stat.executeQuery("select Id from Users where Login='"+u.login+"'" + // TODO sanitize input!
-					" and PasswordHash='"+u.passwordHash+"';");
+			logger.finer("select * from Users where Login='"+u.login+"' and PasswordHash='"+u.passwordHash+"';");
+			rs = stat.executeQuery("select Id from Users where Login='"+u.login+"' and PasswordHash='"+u.passwordHash+"';");
+			//TODO ^ sanitize input!
 			while(rs.next()) {
 				logger.finest("rs.next().getInt(Id) = " + rs.getInt("Id"));
-				return u.setId(rs.getInt("Id"));
+				return new User(rs.getInt("Id"), rs.getString("Login"), new Date(rs.getLong("LastLogin")), rs.getString("PasswordHash"));
 			}
 		} finally {
 			if(rs != null)
@@ -199,12 +351,13 @@ public class DataMaster {
 		}
 		return null;
 	}
+	@Deprecated
 	public User addUser(User u) throws SQLException {
 		User ret = null;
 		ret = getUserFromDBByValues(u);
 		if(ret != null)
 			return ret;
-		
+
 		GregorianCalendar cal = new GregorianCalendar();
 		cal.setTime(u.lastLogin);
 
@@ -227,7 +380,7 @@ public class DataMaster {
 	public User modUser(User u) throws SQLException {
 		if(users.containsValue(u))
 			return addUser(u);
-		
+
 		GregorianCalendar cal = new GregorianCalendar();
 		cal.setTime(u.lastLogin);
 
@@ -242,7 +395,7 @@ public class DataMaster {
 		prep.executeBatch();
 		conn.setAutoCommit(true);
 
-		User ret = getUserById(u);
+		User ret = getUserById(u.id);
 		logger.finest("getUserById("+u+") = "+ret);
 		users.put(ret.id, ret);
 		return ret;

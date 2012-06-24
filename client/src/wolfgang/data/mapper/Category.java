@@ -4,45 +4,49 @@ public class Category {
 	public final int id;
 	public final String description;
 	public final int balance;
-	public final Boolean accumulator;
+	
+	@Override
+	@Deprecated
+	public String toString() {
+		StringBuilder sb = new StringBuilder("#Category{");
+		sb.append("id=");
+		sb.append(id);
+		sb.append(", ");
+		sb.append("description=");
+		sb.append(description);
+		sb.append(", ");
+		sb.append("balance=");
+		sb.append(balance);
+		sb.append("}");
+		return sb.toString();
+	}
 
 	public Category(Category c) {
 		super();
 		this.id = c.id;
 		this.description = c.description;
 		this.balance = c.balance;
-		this.accumulator = c.accumulator;
 	}
-	public Category(int id, String description, int balance, Boolean accumulator) {
+	public Category(int id, String description, int balance) {
 		super();
 		this.id = id;
 		this.description = description;
 		this.balance = balance;
-		this.accumulator = accumulator;
 	}
-
-	public Category setId(int newId) {
-		if(newId == id)
-			return this;
-		Category ret = new Category(newId, description, balance, accumulator);
-		return ret;
-	}
+	
 	public Category setDescription(String newDescription) {
 		if(newDescription == null)
 			throw new NullPointerException();
 		if(newDescription.equals(description))
 			return this;
-		Category ret = new Category(id, newDescription, balance, accumulator);
-		return ret;
+		return new Category(id, newDescription, balance);
 	}
 	public Category setBalance(int newBalance) {
 		if(newBalance == balance)
 			return this;
-		Category ret = new Category(id, description, newBalance, accumulator);
-		return ret;
+		return new Category(id, description, newBalance);
 	}
 	public Category setAccumulator(boolean newAccumulator) {
-		Category ret = new Category(id, description, balance, newAccumulator);
-		return ret;
+		return new Category(id, description, balance);
 	}
 }

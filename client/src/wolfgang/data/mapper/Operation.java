@@ -13,6 +13,39 @@ public class Operation {
 	public final Date repetitionDiff;
 	public final int completed;
 
+	@Override
+	@Deprecated
+	public String toString() {
+		StringBuilder sb = new StringBuilder("#Operation{");
+		sb.append("id=");
+		sb.append(id);
+		sb.append(", ");
+		sb.append("user#User.id=");
+		sb.append(user.id);
+		sb.append(", ");
+		sb.append("category#Category.id=");
+		sb.append(category.id);
+		sb.append(", ");
+		sb.append("groupId=");
+		sb.append(groupId == null ? "null" : groupId);
+		sb.append(", ");
+		sb.append("balance=");
+		sb.append(balance);
+		sb.append(", ");
+		sb.append("dateStart=");
+		sb.append(dateStart);
+		sb.append(", ");
+		sb.append("repetitions=");
+		sb.append(repetitions);
+		sb.append(", ");
+		sb.append("repetitionDiff=");
+		sb.append(repetitionDiff);
+		sb.append(", ");
+		sb.append("completed=");
+		sb.append(completed);
+		sb.append("}");
+		return sb.toString();
+	}
 
 	public Operation(Operation o) {
 		super();
@@ -39,55 +72,43 @@ public class Operation {
 		this.repetitionDiff = repetitionDiff;
 		this.completed = completed;
 	}
-
-	public Operation setId(int newId) {
-		if(newId == id)
-			return this;
-		Operation ret = new Operation(newId, user, category, balance, groupId, dateStart, repetitions, repetitionDiff, completed);
-		return ret;
-	}
+	
 	public Operation setUser(User newUser) {
 		if(newUser == null)
 			throw new NullPointerException();
 		if(newUser == user)
 			return this;
-		Operation ret = new Operation(id, newUser, category, balance, groupId, dateStart, repetitions, repetitionDiff, completed);
-		return ret;
-	}
-	public Operation setBalance(int newBalance) {
-		if(newBalance == balance)
-			return this;
-		Operation ret = new Operation(id, user, category, newBalance, groupId, dateStart, repetitions, repetitionDiff, completed);
-		return ret;
+		return new Operation(id, newUser, category, balance, groupId, dateStart, repetitions, repetitionDiff, completed);
 	}
 	public Operation setCategory(Category newCategory) {
 		if(newCategory == null)
 			throw new NullPointerException();
 		if(newCategory == category)
 			return this;
-		Operation ret = new Operation(id, user, newCategory, balance, groupId, dateStart, repetitions, repetitionDiff, completed);
-		return ret;
+		return new Operation(id, user, newCategory, balance, groupId, dateStart, repetitions, repetitionDiff, completed);
+	}
+	public Operation setBalance(int newBalance) {
+		if(newBalance == balance)
+			return this;
+		return new Operation(id, user, category, newBalance, groupId, dateStart, repetitions, repetitionDiff, completed);
 	}
 	public Operation setGroupId(Integer newGroupId) {
 		// we allow null
 		if(newGroupId == groupId)
 			return this;
-		Operation ret = new Operation(id, user, category, balance, newGroupId, dateStart, repetitions, repetitionDiff, completed);
-		return ret;
+		return new Operation(id, user, category, balance, newGroupId, dateStart, repetitions, repetitionDiff, completed);
 	}
 	public Operation setDateStart(Date newDateStart) {
 		if(newDateStart == null)
 			throw new NullPointerException();
 		if(newDateStart == dateStart)
 			return this;
-		Operation ret = new Operation(id, user, category, balance, groupId, newDateStart, repetitions, repetitionDiff, completed);
-		return ret;
+		return new Operation(id, user, category, balance, groupId, newDateStart, repetitions, repetitionDiff, completed);
 	}
 	public Operation setRepetitions(int newRepetitions) {
 		if(newRepetitions == repetitions)
 			return this;
-		Operation ret = new Operation(id, user, category, balance, groupId, dateStart, newRepetitions, repetitionDiff, completed);
-		return ret;
+		return new Operation(id, user, category, balance, groupId, dateStart, newRepetitions, repetitionDiff, completed);
 	}
 	public Operation setRepetitionDiff(Date newRepetitionDiff) {
 		// we allow null iff repetitions == 0
@@ -95,14 +116,12 @@ public class Operation {
 			throw new NullPointerException();
 		if(newRepetitionDiff == repetitionDiff)
 			return this;
-		Operation ret = new Operation(id, user, category, balance, groupId, dateStart, repetitions, newRepetitionDiff, completed);
-		return ret;
+		return new Operation(id, user, category, balance, groupId, dateStart, repetitions, newRepetitionDiff, completed);
 	}
 	public Operation setCompleted(int newCompleted) {
 		if(newCompleted == completed)
 			return this;
-		Operation ret = new Operation(id, user, category, balance, groupId, dateStart, repetitions, repetitionDiff, newCompleted);
-		return ret;
+		return new Operation(id, user, category, balance, groupId, dateStart, repetitions, repetitionDiff, newCompleted);
 	}
 
 }

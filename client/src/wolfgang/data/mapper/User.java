@@ -6,8 +6,8 @@ import java.util.Date;
 
 import wolfgang.data.DataMaster;
 
-public class User {
-	public final int id; // ustalane przez applikację, zero gdy nie wiadomo
+public final class User {
+	public final int id;
 	public final String login;
 	public final Date lastLogin;
 	public final String passwordHash;
@@ -27,40 +27,32 @@ public class User {
 		this.passwordHash = passwordHash;
 	}
 
-	public User setId(int newId) {
-		if(newId == id)
-			return this;
-		User ret = new User(newId, login, lastLogin, passwordHash.toString());
-		return ret;
-	}
 	public User setLogin(String newLogin) {
 		if(newLogin == null)
 			throw new NullPointerException();
 		if(newLogin.equals(login))
 			return this;
-		User ret = new User(id, newLogin, lastLogin, passwordHash);
-		return ret;
+		return new User(id, newLogin, lastLogin, passwordHash);
 	}
 	public User setLastLogin(Date newLastLogin) {
 		if(newLastLogin == null)
 			throw new NullPointerException();
 		if(newLastLogin == lastLogin)
 			return this;
-		User ret = new User(id, login, newLastLogin, passwordHash.toString());
-		return ret;
+		return new User(id, login, newLastLogin, passwordHash);
 	}
 	public User setPassword(String newPassword) throws NoSuchAlgorithmException {
-		DataMaster.logger.entering(this.getClass().getName(), "setPassword");
-		MessageDigest md = MessageDigest.getInstance("SHA-256");
-		md.update(newPassword.getBytes());
-		byte[] newPasswordHash = md.digest();
-		DataMaster.logger.finest("SHA256(...) = "+DataMaster.bytesToString(newPasswordHash));
-		// always return new, no matter this is the same pass
-		User ret = new User(id, login, lastLogin, DataMaster.bytesToString(newPasswordHash));
-		DataMaster.logger.exiting(this.getClass().getName(), "setPassword");
-		return ret;
+		return new User(id, login, lastLogin, genPasswordHash(newPassword, login));
 	}
+	public static String genPasswordHash(String pass, String login) throws NoSuchAlgorithmException {
+		MessageDigest md = MessageDigest.getInstance("SHA-256");
+		md.update(pass.getBytes());
+		md.update(login.getBytes());
+		return DataMaster.bytesToString(md.digest());
+	}
+
 	@Override
+	@Deprecated
 	public String toString() {
 		StringBuilder sb = new StringBuilder("#User{");
 		sb.append("id=");
