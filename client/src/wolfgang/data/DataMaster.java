@@ -8,18 +8,15 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.List;
-import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import wolfgang.data.mapper.Category;
 import wolfgang.data.mapper.Operation;
 import wolfgang.data.mapper.User;
@@ -27,12 +24,17 @@ import wolfgang.data.mapper.User;
 public class DataMaster {
 	public static final String DATABASE_FILE = "wolfgang.db";
 
-	private static final String OPERATIONS_TABLENAME = "Operations";
-	private static final String OPERATIONS_SCHEMA = "(Id INTEGER PRIMARY KEY, Balance NUMERIC, UserId INTEGER, CategoryId INTEGER, GroupId INTEGER, Repetitions INTEGER, RepetitionDiff INTEGER, " + "Completed INTEGER, DateStart integer)";
-	private static final String CATEGORIES_SCHEMA = "(Id INTEGER PRIMARY KEY, Description TEXT, Balance NUMERIC)";
-	private static final String CATEGORIES_TABLENAME = "Categories";
-	private static final String USERS_SCHEMA = "(Id integer PRIMARY KEY, Login text, PasswordHash text, LastLogin numeric)";
+	private static final String USERS_SCHEMA =
+			"(Id integer PRIMARY KEY, Login text, PasswordHash text, LastLogin numeric)";
+	private static final String CATEGORIES_SCHEMA =
+			"(Id INTEGER PRIMARY KEY, Description TEXT, Balance NUMERIC)";
+	private static final String OPERATIONS_SCHEMA =
+			"(Id INTEGER PRIMARY KEY, Balance NUMERIC, UserId INTEGER, CategoryId INTEGER, GroupId INTEGER, " +
+					"Repetitions INTEGER, RepetitionDiff INTEGER, Completed INTEGER, DateStart integer, " +
+					"FOREIGN KEY(UserId) REFERENCES Users(id), FOREIGN KEY(CategoryId) REFERENCES Category(id))";
 	private static final String USERS_TABLENAME = "Users";
+	private static final String CATEGORIES_TABLENAME = "Categories";
+	private static final String OPERATIONS_TABLENAME = "Operations";
 
 	public static Logger logger = Logger.getLogger("WolfgangLog");
 	private static DataMaster instance = null;
@@ -90,7 +92,7 @@ public class DataMaster {
 			try {
 				rs = stat.executeQuery("select * from Users;");
 				while(rs.next()) {
-					User newUser = new User(rs.getInt("Id"), rs.getString("Login"), new Date(rs.getInt("LastLogin")), rs.getString("PasswordHash"));
+					User newUser = new User(rs.getInt("Id"), rs.getString("Login"), rs.getDate("LastLogin"), rs.getString("PasswordHash"));
 					users.put(newUser.id, newUser);
 				}
 			} finally {
@@ -132,7 +134,7 @@ public class DataMaster {
 					if(rs.getInt("GroupId") != 0)
 						newOpGId = rs.getInt("GroupId");
 					Operation newOp = new Operation(rs.getInt("Id"), newOpUsr, newOpCat, rs.getInt("Balance"), newOpGId,
-							new Date(rs.getInt("DateStart")), rs.getInt("Repetitions"), new Date(rs.getInt("RepetitionDiff")),
+							rs.getDate("DateStart"), rs.getInt("Repetitions"), rs.getDate("RepetitionDiff"),
 							rs.getInt("Completed"));
 					operations.put(newOp.id, newOp);
 				}
@@ -164,14 +166,16 @@ public class DataMaster {
 			for(Operation o : dm.operations.values())
 				System.out.println("\t\t"+o);
 
-			dm.createUser("Konrad", new Date(), "ala123");
+			User uKonrad = dm.createUser("Konrad", new Date(), "ala123");
 			dm.createCategory("Na auto", 0);
 			dm.createOperation(1, 1, 0, null, new Date(), 0, null, 1);
+			
+			dm.updateUser(uKonrad = uKonrad.setLogin("Konrad2"));
 
 			System.out.println();
 			System.out.println("====================");
 			System.out.println();
-			
+
 			System.out.println("Users:");
 			for(User u : dm.users.values())
 				System.out.println("\t\t"+u);
@@ -194,11 +198,22 @@ public class DataMaster {
 
 		Operation ret = null;
 		try {
+			if(groupId != null && groupId == 0)
+				groupId = null;
+
 			PreparedStatement prepInsert = conn.prepareStatement("insert into "+OPERATIONS_TABLENAME+
 					" (Balance, UserId, CategoryId, GroupId, Repetitions, RepetitionDiff, Completed, DateStart)" +
 					" values (?, ?, ?, ?, ?, ?, ?, ?);");
 			PreparedStatement prepSelect = conn.prepareStatement("select last_insert_rowid();");
 
+			prepInsert.setInt(1, balance);
+			prepInsert.setInt(2, userId);
+			prepInsert.setInt(3, categoryId);
+			prepInsert.setInt(4, groupId == null ? 0 : groupId);
+			prepInsert.setInt(5, repetitions);
+			prepInsert.setLong(6, repetitionDiff == null ? 0 : repetitionDiff.getTime());
+			prepInsert.setInt(7, completed);
+			prepInsert.setDate(8, dateStart == null ? null : new java.sql.Date(dateStart.getTime()));
 			prepInsert.addBatch();
 
 			prepInsert.executeBatch();
@@ -219,7 +234,7 @@ public class DataMaster {
 		}
 
 		return ret;
-		
+
 	}
 
 	private Category createCategory(String description, int balance) throws SQLException {
@@ -297,147 +312,40 @@ public class DataMaster {
 
 		return ret;
 	}
+	
+	public User updateUser(User u) throws SQLException {
 
-	@Deprecated
-	public static void mainold(String args[]) {
 		try {
-			logger.entering("-", "main");
-			DataMaster dm = DataMaster.getInstance();
+			GregorianCalendar cal = new GregorianCalendar();
+			cal.setTime(u.lastLogin);
 
-			User u = new User(0, "Konrad", new Date(), "");
-			dm.addUser(u.setPassword("konradek"));
 
-			for(Entry<Integer, User> i : dm.users.entrySet())
-				logger.finest("User #"+i.getKey() + " login="+i.getValue().login);
+			PreparedStatement prepInsert = conn.prepareStatement("update "+USERS_TABLENAME+" set Login = ?, PasswordHash = ?, LastLogin = ? where Id = ?;");
 
-			dm.modUser(dm.users.get(1).setPassword("konradek"));
+			prepInsert.setString(1, u.login);
+			prepInsert.setString(2, u.passwordHash);
+			prepInsert.setDouble(3, cal.getTimeInMillis());
+			prepInsert.setInt(4, u.id);
+			prepInsert.addBatch();
 
-			logger.exiting("-", "main");
-		} catch (Exception e) {
-			System.out.println(e.getMessage());
-			e.printStackTrace();
+			prepInsert.executeBatch();
+			
+		} catch (SQLException e) {
+			conn.rollback();
+			throw e;
 		}
-	}
 
-	public User getUserById(int uid) throws SQLException {
-		ResultSet rs = null;
-		try {
-			Statement stat = conn.createStatement();
-			rs = stat.executeQuery("select * from "+USERS_TABLENAME+" where Id="+uid+";");
-			while(rs.next())
-				return new User(rs.getInt("Id"), rs.getString("Login"), new Date(rs.getLong("LastLogin")), rs.getString("PasswordHash"));
-		} finally {
-			if(rs != null)
-				rs.close();
-		}
-		return null;
-	}
-	@Deprecated
-	public User getUserFromDBByValues(User u) throws SQLException {
-		logger.entering(this.getClass().getName(), "getUserFromDBByValues");
-		ResultSet rs = null;
-		try {
-			Statement stat = conn.createStatement();
-			logger.finer("select * from Users where Login='"+u.login+"' and PasswordHash='"+u.passwordHash+"';");
-			rs = stat.executeQuery("select Id from Users where Login='"+u.login+"' and PasswordHash='"+u.passwordHash+"';");
-			//TODO ^ sanitize input!
-			while(rs.next()) {
-				logger.finest("rs.next().getInt(Id) = " + rs.getInt("Id"));
-				return new User(rs.getInt("Id"), rs.getString("Login"), new Date(rs.getLong("LastLogin")), rs.getString("PasswordHash"));
-			}
-		} finally {
-			if(rs != null)
-				rs.close();
-		}
-		return null;
-	}
-	@Deprecated
-	public User addUser(User u) throws SQLException {
-		User ret = null;
-		ret = getUserFromDBByValues(u);
-		if(ret != null)
-			return ret;
-
-		GregorianCalendar cal = new GregorianCalendar();
-		cal.setTime(u.lastLogin);
-
-		PreparedStatement prep = conn.prepareStatement("insert into "+USERS_TABLENAME+
-				"(Login, PasswordHash, LastLogin) values (?, ?, ?);");
-		prep.setString(1, u.login);
-		prep.setString(2, u.passwordHash);
-		prep.setDouble(3, cal.getTimeInMillis());
-		prep.addBatch();
-
-		conn.setAutoCommit(false);
-		prep.executeBatch();
-		conn.setAutoCommit(true);
-
-		ret = getUserFromDBByValues(u);
-		logger.finest("ret = {class=User, Id=" + ret.id + ", Login="+ret.login+"}");
-		users.put(ret.id, ret); // fail if ret == null
-		return ret;
-	}
-	public User modUser(User u) throws SQLException {
-		if(users.containsValue(u))
-			return addUser(u);
-
-		GregorianCalendar cal = new GregorianCalendar();
-		cal.setTime(u.lastLogin);
-
-		PreparedStatement prep = conn.prepareStatement("update "+USERS_TABLENAME+" set Login= ?, PasswordHash= ?, LastLogin= ? where Id= ? ;");
-		prep.setString(1, u.login);
-		prep.setString(2, u.passwordHash);
-		prep.setDouble(3, cal.getTimeInMillis());
-		prep.setInt   (4, u.id);
-		prep.addBatch();
-
-		conn.setAutoCommit(false);
-		prep.executeBatch();
-		conn.setAutoCommit(true);
-
-		User ret = getUserById(u.id);
-		logger.finest("getUserById("+u+") = "+ret);
-		users.put(ret.id, ret);
-		return ret;
-	}
-	public User delUser(User u) {
-		// TODO
 		return u;
 	}
-	public List<User> getUsers() {
-		List<User> ret = new ArrayList<User>(users.size());
-		for(User i : users.values())
-			ret.add(i);
-		return ret;
-	}
-	public User getUser(int id) {
-		return null;
-	}
 
-	public Category addCategory(Category c) {
-		throw new NotImplementedException();
+	public Collection<User> getUsers() {
+		return users.values();
 	}
-	public Category modCategory(Category c) {
-		throw new NotImplementedException();
+	public Collection<Category> getCategories() {
+		return categories.values();
 	}
-	public Category delCategory(Category c) {
-		throw new NotImplementedException();
-	}
-	public Category[] getCategories() {
-		return (Category[]) categories.values().toArray();
-	}
-
-	public Operation addOperation(Operation o) {
-		throw new NotImplementedException();
-	}
-	public Operation modOperation(Operation o) {
-		throw new NotImplementedException();
-	}
-	public Operation delOperation(Operation o) {
-		throw new NotImplementedException();
-	}
-	public Operation[] getOperations() {
-		return (Operation[]) operations.values().toArray();
+	public Collection<Operation> getOperations() {
+		return operations.values();
 	}
 }
 
