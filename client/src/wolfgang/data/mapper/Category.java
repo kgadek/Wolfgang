@@ -46,7 +46,4 @@ public class Category {
 			return this;
 		return new Category(id, description, newBalance);
 	}
-	public Category setAccumulator(boolean newAccumulator) {
-		return new Category(id, description, balance);
-	}
 }

@@ -167,10 +167,16 @@ public class DataMaster {
 				System.out.println("\t\t"+o);
 
 			User uKonrad = dm.createUser("Konrad", new Date(), "ala123");
-			dm.createCategory("Na auto", 0);
-			dm.createOperation(1, 1, 0, null, new Date(), 0, null, 1);
+			Category cAuto = dm.createCategory("Na auto", 0);
+			Operation op1 = dm.createOperation(1, 1, 0, null, new Date(), 0, null, 1);
 			
-			dm.updateUser(uKonrad = uKonrad.setLogin("Konrad2"));
+			uKonrad = dm.updateUser(uKonrad.setLogin("Konrad2"));
+			cAuto = dm.updateCategory(cAuto.setBalance(100));
+			op1 = dm.updateOperation(op1.setBalance(1000));
+			
+			dm.removeOperation(op1);
+			dm.removeCategory(cAuto);
+			dm.removeUser(uKonrad);
 
 			System.out.println();
 			System.out.println("====================");
@@ -236,6 +242,55 @@ public class DataMaster {
 		return ret;
 
 	}
+	
+	@Deprecated
+	private Operation updateOperation(Operation o) throws SQLException {
+		// deprecated bo f. nie powinna być wykorzystywna ever
+		try {
+			PreparedStatement prepInsert = conn.prepareStatement("update "+OPERATIONS_TABLENAME+
+					" set Balance = ? , UserId = ? , CategoryId = ? , GroupId = ? , Repetitions = ? ," +
+					" RepetitionDiff = ? , Completed = ? , DateStart = ? where Id = ?;");
+
+			prepInsert.setInt(1, o.balance);
+			prepInsert.setInt(2, o.user.id);
+			prepInsert.setInt(3, o.category.id);
+			prepInsert.setInt(4, o.groupId == null ? 0 : o.groupId);
+			prepInsert.setInt(5, o.repetitions);
+			prepInsert.setDate(6, o.repetitionDiff == null ? null : new java.sql.Date(o.repetitionDiff.getTime()));
+			prepInsert.setInt(7, o.completed);
+			prepInsert.setDate(8, new java.sql.Date(o.dateStart.getTime()));
+			prepInsert.setInt(9, o.id);
+			prepInsert.addBatch();
+
+			prepInsert.executeBatch();
+		} catch (SQLException e) {
+			conn.rollback();
+			throw e;
+		}
+		return o;
+	}
+	
+	@Deprecated
+	private Operation removeOperation(Operation o) throws SQLException {
+		// deprecated bo f. nie powinna być wykorzystywna ever
+		conn.setAutoCommit(false);
+		try {
+			PreparedStatement prepInsert = conn.prepareStatement("delete from "+OPERATIONS_TABLENAME+" where Id = ? ;");
+			prepInsert.setInt(1, o.id);
+			prepInsert.addBatch();
+			
+			prepInsert.executeBatch();
+			operations.remove(o.id);
+			conn.commit();
+		} catch (SQLException e) {
+			conn.rollback();
+			throw e;
+		} finally {
+			conn.setAutoCommit(true);
+		}
+		return o;
+	}
+
 
 	private Category createCategory(String description, int balance) throws SQLException {
 		conn.setAutoCommit(false);
@@ -267,7 +322,42 @@ public class DataMaster {
 
 		return ret;
 	}
+	
+	private Category updateCategory(Category c) throws SQLException {
+		try {
+			PreparedStatement prepInsert = conn.prepareStatement("update "+CATEGORIES_TABLENAME+" set Description = ?, Balance = ? where Id = ?;");
+			prepInsert.setString(1, c.description);
+			prepInsert.setInt(2, c.balance);
+			prepInsert.setInt(3, c.id);
+			prepInsert.addBatch();
 
+			prepInsert.executeBatch();
+		} catch (SQLException e) {
+			conn.rollback();
+			throw e;
+		}
+		return c;
+	}
+
+	private Category removeCategory(Category c) throws SQLException {
+		conn.setAutoCommit(false);
+		try {
+			PreparedStatement prepInsert = conn.prepareStatement("delete from "+CATEGORIES_TABLENAME+" where Id = ? ;");
+			prepInsert.setInt(1, c.id );
+			prepInsert.addBatch();
+
+			prepInsert.executeBatch();
+			categories.remove(c.id);
+			conn.commit();
+		} catch (SQLException e) {
+			conn.rollback();
+			throw e;
+		} finally {
+			conn.setAutoCommit(true);
+		}
+		return c;
+	}
+	
 	public User createUser(String login, Date lastLogin, String password) throws SQLException {
 		conn.setAutoCommit(false);
 
@@ -319,7 +409,6 @@ public class DataMaster {
 			GregorianCalendar cal = new GregorianCalendar();
 			cal.setTime(u.lastLogin);
 
-
 			PreparedStatement prepInsert = conn.prepareStatement("update "+USERS_TABLENAME+" set Login = ?, PasswordHash = ?, LastLogin = ? where Id = ?;");
 
 			prepInsert.setString(1, u.login);
@@ -335,6 +424,25 @@ public class DataMaster {
 			throw e;
 		}
 
+		return u;
+	}
+	
+	public User removeUser(User u) throws SQLException {
+		conn.setAutoCommit(false);
+		try {
+			PreparedStatement prepInsert = conn.prepareStatement("delete from "+USERS_TABLENAME+" where Id = ? ;");
+			prepInsert.setInt(1, u.id);
+			prepInsert.addBatch();
+
+			prepInsert.executeBatch();
+			users.remove(u.id);
+			conn.commit();
+		} catch (SQLException e) {
+			conn.rollback();
+			throw e;
+		} finally {
+			conn.setAutoCommit(true);
+		}
 		return u;
 	}
 
