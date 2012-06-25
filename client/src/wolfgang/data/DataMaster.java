@@ -245,7 +245,6 @@ public class DataMaster {
 	
 	@Deprecated
 	private Operation updateOperation(Operation o) throws SQLException {
-		// deprecated bo f. nie powinna być wykorzystywna ever
 		try {
 			PreparedStatement prepInsert = conn.prepareStatement("update "+OPERATIONS_TABLENAME+
 					" set Balance = ? , UserId = ? , CategoryId = ? , GroupId = ? , Repetitions = ? ," +
@@ -272,7 +271,6 @@ public class DataMaster {
 	
 	@Deprecated
 	private Operation removeOperation(Operation o) throws SQLException {
-		// deprecated bo f. nie powinna być wykorzystywna ever
 		conn.setAutoCommit(false);
 		try {
 			PreparedStatement prepInsert = conn.prepareStatement("delete from "+OPERATIONS_TABLENAME+" where Id = ? ;");
