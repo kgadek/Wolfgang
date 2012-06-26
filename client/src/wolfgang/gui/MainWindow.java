@@ -4,6 +4,8 @@ import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
@@ -18,27 +20,64 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
+import javax.swing.JTextField;
 import javax.swing.table.DefaultTableCellRenderer;
 
 import wolfgang.data.DataMaster;
 import wolfgang.data.mapper.Operation;
+import wolfgang.data.mapper.User;
 
 public class MainWindow {
 
 	private DataMaster dm;
+	private User logged;
 	
 	public MainWindow() throws ClassNotFoundException, NoSuchAlgorithmException, SecurityException, SQLException, IOException {
 		super();
 		dm = DataMaster.getInstance();
 	}
+	
+	private static MainWindow mainWindow;
+	private static JFrame loginFrame;
+	private static JFrame mainFrame;
+	private static JTextField loginTextField;
+	private static JTextField passTextField;
 
 	public static void main(String[] args) {
 		javax.swing.SwingUtilities.invokeLater(new Runnable() {
 			@Override
 			public void run() {
 				try {
-					MainWindow mw = new MainWindow();
-					mw.createAndShowMainWindow();
+					mainWindow = new MainWindow();
+					
+					
+					loginFrame = new JFrame("Logowanie");
+					GridBagLayout gbl = new GridBagLayout();
+					GridBagConstraints c = new GridBagConstraints();
+					loginFrame.setLayout(gbl);
+					
+					c.fill = GridBagConstraints.HORIZONTAL;
+					c.weightx = 100;
+					c.weighty = 20;
+					loginFrame.add(loginTextField = new JTextField("login"), c);
+					loginFrame.add(passTextField = new JTextField("pass"), c);
+					JButton logMeIn = new JButton();
+					logMeIn.setText("Logowanie");
+					logMeIn.addActionListener(new ActionListener() {
+						@Override
+						public void actionPerformed(ActionEvent e) {
+							if((mainWindow.logged = mainWindow.verifyUser(loginTextField.getText(), passTextField.getText())) != null) {
+								loginFrame.setVisible(false);
+								mainFrame = mainWindow.createMainWindow();
+								mainFrame.setVisible(true);
+							}
+						}
+					});
+					loginFrame.add(logMeIn, c);
+					
+					loginFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+					loginFrame.pack();
+					loginFrame.setVisible(true);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -46,7 +85,11 @@ public class MainWindow {
 		});
 	}
 	
-	public void createAndShowMainWindow() {
+	protected User verifyUser(String user, String password) {
+		return dm.checkLogin(user, password);
+	}
+
+	public JFrame createMainWindow() {
 		JFrame mainFrame = new JFrame("Wolfgang");
 		mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
@@ -66,7 +109,7 @@ public class MainWindow {
 		
 //		mainFrame.pack();
 		mainFrame.setSize(700, 500);
-		mainFrame.setVisible(true);
+		return mainFrame;
 	}
 
 	private static JPanel genPodsumowaniePane() {
@@ -85,10 +128,14 @@ public class MainWindow {
 			Format formatter = new SimpleDateFormat("yyyy-MM-dd");
 			
 			String[] colNames = { "Kategoria", "Opis", "Data", "Bilans", "Saldo" };
-			Object[][] data = new Object[dm.getOperations().size()][];
+			int num = 0;
+			for(Operation o : dm.getOperations())
+				if(o.user.id == logged.id)
+					num++;
+			Object[][] data = new Object[num][];
 			int i = 0;
 			for(Operation o : dm.getOperations())
-				if(o.user.id == 1)
+				if(o.user.id == logged.id)
 					data[i++] = new Object[] { o.category.description, o.description, formatter.format(o.dateStart), o.balance, o.finalBalance };
 			
 			JTable table = new JTable(data, colNames);

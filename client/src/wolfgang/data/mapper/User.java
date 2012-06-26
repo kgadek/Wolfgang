@@ -26,8 +26,9 @@ public final class User {
 		this.lastLogin = lastLogin;
 		this.passwordHash = passwordHash;
 	}
-
+	@Deprecated
 	public User setLogin(String newLogin) {
+		// UWAGA. Psuje hasło :P
 		if(newLogin == null)
 			throw new NullPointerException();
 		if(newLogin.equals(login))

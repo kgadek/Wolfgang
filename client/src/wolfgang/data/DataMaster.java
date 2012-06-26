@@ -173,7 +173,7 @@ public class DataMaster {
 			Category cAuto = dm.createCategory(uKonrad, "Na auto", 0);
 			Operation op1 = dm.createOperation(uKonrad.id, cAuto.id, 0, 0, null, new Date(), 0, null, 1, "Takie tam");
 			
-			uKonrad = dm.updateUser(uKonrad.setLogin("Konrad2"));
+//			uKonrad = dm.updateUser(uKonrad.setLogin("Konrad2"));
 			cAuto = dm.updateCategory(cAuto.setBalance(100));
 			op1 = dm.updateOperation(op1.setBalance(1000));
 			
@@ -199,6 +199,19 @@ public class DataMaster {
 			e.printStackTrace();
 		}
 
+	}
+	
+	public User checkLogin(String login, String password) {
+		try {
+			String passwordHash = User.genPasswordHash(password, login);
+			for(User u : users.values()) {
+				if(u.login.equals(login) && u.passwordHash.equals(passwordHash))
+					return u;
+			}
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 
 	private Operation createOperation(int userId, int categoryId, int balance, int finalBalance, Integer groupId, Date dateStart,
