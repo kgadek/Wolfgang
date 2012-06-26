@@ -11,6 +11,11 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.text.Format;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -24,6 +29,7 @@ import javax.swing.JTextField;
 import javax.swing.table.DefaultTableCellRenderer;
 
 import wolfgang.data.DataMaster;
+import wolfgang.data.mapper.Category;
 import wolfgang.data.mapper.Operation;
 import wolfgang.data.mapper.User;
 
@@ -35,6 +41,15 @@ public class MainWindow {
 	public MainWindow() throws ClassNotFoundException, NoSuchAlgorithmException, SecurityException, SQLException, IOException {
 		super();
 		dm = DataMaster.getInstance();
+		System.out.println("Users:");
+		for(User u : dm.getUsers())
+			System.out.println("\t\t"+u);
+		System.out.println("Categories:");
+		for(Category c : dm.getCategories())
+			System.out.println("\t\t"+c);
+		System.out.println("Operations:");
+		for(Operation o : dm.getOperations())
+			System.out.println("\t\t"+o);
 	}
 	
 	private static MainWindow mainWindow;
@@ -128,20 +143,31 @@ public class MainWindow {
 			Format formatter = new SimpleDateFormat("yyyy-MM-dd");
 			
 			String[] colNames = { "Kategoria", "Opis", "Data", "Bilans", "Saldo" };
-			int num = 0;
-			for(Operation o : dm.getOperations())
-				if(o.user.id == logged.id)
-					num++;
-			Object[][] data = new Object[num][];
+			// this is filter (reduce)
+			Collection<Operation> oops = wolfgang.utils.Utils.filter(dm.getOperations(), new wolfgang.utils.Predicate<Operation>() {
+				@Override
+				public boolean apply(Operation type) {
+					return type.user.id == logged.id;
+				}
+			});
+			Object[][] data = new Object[oops.size()][];
+			List<Operation> res = new ArrayList<Operation>(oops);
+			Collections.sort(res, new Comparator<Operation>() {
+				@Override
+				public int compare(Operation o1, Operation o2) {
+					return (int) (o2.dateStart.getTime() - o1.dateStart.getTime());
+				}
+			});
 			int i = 0;
-			for(Operation o : dm.getOperations())
-				if(o.user.id == logged.id)
+			// this is map
+			for(Operation o : res)
 					data[i++] = new Object[] { o.category.description, o.description, formatter.format(o.dateStart), o.balance, o.finalBalance };
+			// Java, why u got no lambdas?
+			
 			
 			JTable table = new JTable(data, colNames);
 			table.setPreferredScrollableViewportSize(new Dimension(500, 300));
 			table.setFillsViewportHeight(true);
-			
 			
 			table.getColumnModel().getColumn(0).setPreferredWidth(100);
 			
@@ -181,7 +207,7 @@ public class MainWindow {
 		c.fill = GridBagConstraints.BOTH;
 		ret.add(table,c);
 		
-		test = new JButton("lol01");
+		test = new JButton("Dodaj operację");
 		c.weightx = 50;
 		c.weighty = 50;
 		c.gridy = 0;

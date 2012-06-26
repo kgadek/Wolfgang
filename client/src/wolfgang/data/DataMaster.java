@@ -8,6 +8,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -170,12 +172,25 @@ public class DataMaster {
 				System.out.println("\t\t"+o);
 
 			User uKonrad = dm.createUser("Konrad", new Date(), "ala123");
-			Category cAuto = dm.createCategory(uKonrad, "Na auto", 0);
-			Operation op1 = dm.createOperation(uKonrad.id, cAuto.id, 0, 0, null, new Date(), 0, null, 1, "Takie tam");
+			Category cZakupy = dm.createCategory(uKonrad, "Zakupy", 0);
+			Category cWyplata = dm.createCategory(uKonrad, "Wypłata", 0);
+			Category cKredyt = dm.createCategory(uKonrad, "Kredyt", 0);
+			
+			DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+			
+			dm.createOperation(uKonrad, cWyplata, 1000000, 1000000, 0, formatter.parse("2012-04-01 00:00"),
+					0, null, 1, "");
+			dm.createOperation(uKonrad, cZakupy, -900000, 100000, 0, formatter.parse("2012-04-02 13:37"),
+					0, null, 1, "Bo plazma musi być");
+			dm.createOperation(uKonrad, cKredyt, 800000, 900000, 0, formatter.parse("2012-04-03 14:02"),
+					0, null, 1, "Damn, a jednak to była pomyłka...");
+			dm.createOperation(uKonrad, cZakupy, -900000, 0, 0, formatter.parse("2012-04-03 14:15"),
+					0, null, 1, "I to by było na koniec w tym m-cu");
+					
 			
 //			uKonrad = dm.updateUser(uKonrad.setLogin("Konrad2"));
-			cAuto = dm.updateCategory(cAuto.setBalance(100));
-			op1 = dm.updateOperation(op1.setBalance(1000));
+//			cAuto = dm.updateCategory(cAuto.setBalance(100));
+//			op1 = dm.updateOperation(op1.setBalance(1000));
 			
 //			dm.removeOperation(op1);
 //			dm.removeCategory(cAuto);
@@ -214,7 +229,7 @@ public class DataMaster {
 		return null;
 	}
 
-	private Operation createOperation(int userId, int categoryId, int balance, int finalBalance, Integer groupId, Date dateStart,
+	private Operation createOperation(User user, Category category, int balance, int finalBalance, Integer groupId, Date dateStart,
 			int repetitions, Date repetitionDiff, int completed, String description) throws SQLException {
 		conn.setAutoCommit(false);
 
@@ -230,8 +245,8 @@ public class DataMaster {
 			PreparedStatement prepSelect = conn.prepareStatement("select last_insert_rowid();");
 
 			prepInsert.setInt(1, balance);
-			prepInsert.setInt(2, userId);
-			prepInsert.setInt(3, categoryId);
+			prepInsert.setInt(2, user.id);
+			prepInsert.setInt(3, category.id);
 			prepInsert.setInt(4, groupId == null ? 0 : groupId);
 			prepInsert.setInt(5, repetitions);
 			prepInsert.setLong(6, repetitionDiff == null ? 0 : repetitionDiff.getTime());
@@ -247,7 +262,7 @@ public class DataMaster {
 			int newId = 0;
 			while(rs.next())
 				newId = rs.getInt(1);
-			ret = new Operation(newId, users.get(userId), categories.get(categoryId), balance, finalBalance, groupId,
+			ret = new Operation(newId, users.get(user.id), categories.get(category.id), balance, finalBalance, groupId,
 					dateStart, repetitions, repetitionDiff, completed, description);
 			operations.put(newId, ret);
 			conn.commit();
@@ -262,6 +277,7 @@ public class DataMaster {
 
 	}
 	
+	@SuppressWarnings("unused")
 	@Deprecated
 	private Operation updateOperation(Operation o) throws SQLException {
 		try {
@@ -344,6 +360,7 @@ public class DataMaster {
 		return ret;
 	}
 	
+	@SuppressWarnings("unused")
 	private Category updateCategory(Category c) throws SQLException {
 		try {
 			PreparedStatement prepInsert = conn.prepareStatement("update "+CATEGORIES_TABLENAME+" set Description = ?, Balance = ?, UserId = ? where Id = ?;");
