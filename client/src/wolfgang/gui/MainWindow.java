@@ -84,11 +84,12 @@ public class MainWindow {
 			
 			Format formatter = new SimpleDateFormat("yyyy-MM-dd");
 			
-			String[] colNames = { "Użytkownik", "Kategoria", "Data", "Bilans", "Saldo" };
+			String[] colNames = { "Kategoria", "Opis", "Data", "Bilans", "Saldo" };
 			Object[][] data = new Object[dm.getOperations().size()][];
 			int i = 0;
 			for(Operation o : dm.getOperations())
-				data[i++] = new Object[] { o.user.login, o.category.description, formatter.format(o.dateStart), o.balance, "?" };
+				if(o.user.id == 1)
+					data[i++] = new Object[] { o.category.description, o.description, formatter.format(o.dateStart), o.balance, o.finalBalance };
 			
 			JTable table = new JTable(data, colNames);
 			table.setPreferredScrollableViewportSize(new Dimension(500, 300));

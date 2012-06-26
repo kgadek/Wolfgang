@@ -4,6 +4,7 @@ public class Category {
 	public final int id;
 	public final String description;
 	public final int balance;
+	public final User user;
 	
 	@Override
 	@Deprecated
@@ -11,6 +12,9 @@ public class Category {
 		StringBuilder sb = new StringBuilder("#Category{");
 		sb.append("id=");
 		sb.append(id);
+		sb.append(", ");
+		sb.append("user#User.id=");
+		sb.append(user.id);
 		sb.append(", ");
 		sb.append("description=");
 		sb.append(description);
@@ -26,12 +30,14 @@ public class Category {
 		this.id = c.id;
 		this.description = c.description;
 		this.balance = c.balance;
+		this.user = c.user;
 	}
-	public Category(int id, String description, int balance) {
+	public Category(int id, User user, String description, int balance) {
 		super();
 		this.id = id;
 		this.description = description;
 		this.balance = balance;
+		this.user = user;
 	}
 	
 	public Category setDescription(String newDescription) {
@@ -39,11 +45,18 @@ public class Category {
 			throw new NullPointerException();
 		if(newDescription.equals(description))
 			return this;
-		return new Category(id, newDescription, balance);
+		return new Category(id, user, newDescription, balance);
 	}
 	public Category setBalance(int newBalance) {
 		if(newBalance == balance)
 			return this;
-		return new Category(id, description, newBalance);
+		return new Category(id, user, description, newBalance);
+	}
+	public Category setUser(User newUser) {
+		if(user == newUser)
+			return this;
+		if(newUser == null)
+			throw new NullPointerException();
+		return new Category(id, newUser, description, balance);
 	}
 }

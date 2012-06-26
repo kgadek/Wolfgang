@@ -24,17 +24,20 @@ import wolfgang.data.mapper.User;
 public class DataMaster {
 	public static final String DATABASE_FILE = "wolfgang.db";
 
-	private static final String USERS_SCHEMA =
-			"(Id integer PRIMARY KEY, Login text, PasswordHash text, LastLogin numeric)";
-	private static final String CATEGORIES_SCHEMA =
-			"(Id INTEGER PRIMARY KEY, Description TEXT, Balance NUMERIC)";
-	private static final String OPERATIONS_SCHEMA =
-			"(Id INTEGER PRIMARY KEY, Balance NUMERIC, UserId INTEGER, CategoryId INTEGER, GroupId INTEGER, " +
-					"Repetitions INTEGER, RepetitionDiff INTEGER, Completed INTEGER, DateStart integer, " +
-					"FOREIGN KEY(UserId) REFERENCES Users(id), FOREIGN KEY(CategoryId) REFERENCES Category(id))";
 	private static final String USERS_TABLENAME = "Users";
 	private static final String CATEGORIES_TABLENAME = "Categories";
 	private static final String OPERATIONS_TABLENAME = "Operations";
+	
+	private static final String USERS_SCHEMA =
+			"(Id integer PRIMARY KEY, Login text, PasswordHash text, LastLogin numeric)";
+	private static final String CATEGORIES_SCHEMA =
+			"(Id INTEGER PRIMARY KEY, UserId INTEGER NOT NULL, Description TEXT, Balance NUMERIC, " +
+			"FOREIGN KEY(UserId) REFERENCES "+USERS_TABLENAME+"(Id))";
+	private static final String OPERATIONS_SCHEMA =
+			"(Id INTEGER PRIMARY KEY, Balance NUMERIC, UserId INTEGER NOT NULL, CategoryId INTEGER NOT NULL, " +
+			"GroupId INTEGER, Repetitions INTEGER, RepetitionDiff INTEGER, Completed INTEGER, DateStart integer, " +
+			"Description TEXT, FinalBalance NUMERIC, FOREIGN KEY(UserId) REFERENCES "+USERS_TABLENAME+"(id), " +
+			"FOREIGN KEY(CategoryId) REFERENCES "+CATEGORIES_TABLENAME+"(id))";
 
 	public static Logger logger = Logger.getLogger("WolfgangLog");
 	private static DataMaster instance = null;
@@ -104,7 +107,7 @@ public class DataMaster {
 			try {
 				rs = stat.executeQuery("select * from Categories;");
 				while(rs.next()) {
-					Category newCat = new Category(rs.getInt("Id"), rs.getString("Description"), rs.getInt("Balance"));
+					Category newCat = new Category(rs.getInt("Id"), users.get(rs.getInt("UserId")), rs.getString("Description"), rs.getInt("Balance"));
 					categories.put(newCat.id, newCat);
 				}
 			} finally {
@@ -133,9 +136,9 @@ public class DataMaster {
 					Integer newOpGId = null;
 					if(rs.getInt("GroupId") != 0)
 						newOpGId = rs.getInt("GroupId");
-					Operation newOp = new Operation(rs.getInt("Id"), newOpUsr, newOpCat, rs.getInt("Balance"), newOpGId,
-							rs.getDate("DateStart"), rs.getInt("Repetitions"), rs.getDate("RepetitionDiff"),
-							rs.getInt("Completed"));
+					Operation newOp = new Operation(rs.getInt("Id"), newOpUsr, newOpCat, rs.getInt("Balance"), rs.getInt("FinalBalance"), newOpGId,
+							rs.getDate("DateStart"), rs.getInt("Repetitions"), rs.getDate("RepetitionDiff"), rs.getInt("Completed"),
+							rs.getString("Description"));
 					operations.put(newOp.id, newOp);
 				}
 			} finally {
@@ -167,8 +170,8 @@ public class DataMaster {
 				System.out.println("\t\t"+o);
 
 			User uKonrad = dm.createUser("Konrad", new Date(), "ala123");
-			Category cAuto = dm.createCategory("Na auto", 0);
-			Operation op1 = dm.createOperation(1, 1, 0, null, new Date(), 0, null, 1);
+			Category cAuto = dm.createCategory(uKonrad, "Na auto", 0);
+			Operation op1 = dm.createOperation(uKonrad.id, cAuto.id, 0, 0, null, new Date(), 0, null, 1, "Takie tam");
 			
 			uKonrad = dm.updateUser(uKonrad.setLogin("Konrad2"));
 			cAuto = dm.updateCategory(cAuto.setBalance(100));
@@ -198,8 +201,8 @@ public class DataMaster {
 
 	}
 
-	private Operation createOperation(int userId, int categoryId, int balance, Integer groupId, Date dateStart,
-			int repetitions, Date repetitionDiff, int completed) throws SQLException {
+	private Operation createOperation(int userId, int categoryId, int balance, int finalBalance, Integer groupId, Date dateStart,
+			int repetitions, Date repetitionDiff, int completed, String description) throws SQLException {
 		conn.setAutoCommit(false);
 
 		Operation ret = null;
@@ -208,8 +211,9 @@ public class DataMaster {
 				groupId = null;
 
 			PreparedStatement prepInsert = conn.prepareStatement("insert into "+OPERATIONS_TABLENAME+
-					" (Balance, UserId, CategoryId, GroupId, Repetitions, RepetitionDiff, Completed, DateStart)" +
-					" values (?, ?, ?, ?, ?, ?, ?, ?);");
+					" (Balance, UserId, CategoryId, GroupId, Repetitions, RepetitionDiff, Completed," +
+					" DateStart, Description, FinalBalance)" +
+					" values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
 			PreparedStatement prepSelect = conn.prepareStatement("select last_insert_rowid();");
 
 			prepInsert.setInt(1, balance);
@@ -220,6 +224,8 @@ public class DataMaster {
 			prepInsert.setLong(6, repetitionDiff == null ? 0 : repetitionDiff.getTime());
 			prepInsert.setInt(7, completed);
 			prepInsert.setDate(8, dateStart == null ? null : new java.sql.Date(dateStart.getTime()));
+			prepInsert.setString(9, description);
+			prepInsert.setInt(10, finalBalance);
 			prepInsert.addBatch();
 
 			prepInsert.executeBatch();
@@ -228,8 +234,8 @@ public class DataMaster {
 			int newId = 0;
 			while(rs.next())
 				newId = rs.getInt(1);
-			ret = new Operation(newId, users.get(userId), categories.get(categoryId), balance, groupId,
-					dateStart, repetitions, repetitionDiff, completed);
+			ret = new Operation(newId, users.get(userId), categories.get(categoryId), balance, finalBalance, groupId,
+					dateStart, repetitions, repetitionDiff, completed, description);
 			operations.put(newId, ret);
 			conn.commit();
 		} catch (SQLException e) {
@@ -248,7 +254,7 @@ public class DataMaster {
 		try {
 			PreparedStatement prepInsert = conn.prepareStatement("update "+OPERATIONS_TABLENAME+
 					" set Balance = ? , UserId = ? , CategoryId = ? , GroupId = ? , Repetitions = ? ," +
-					" RepetitionDiff = ? , Completed = ? , DateStart = ? where Id = ?;");
+					" RepetitionDiff= ?, Completed= ?, DateStart= ?, Description= ?, FinalBalance= ? where Id = ?;");
 
 			prepInsert.setInt(1, o.balance);
 			prepInsert.setInt(2, o.user.id);
@@ -258,7 +264,9 @@ public class DataMaster {
 			prepInsert.setDate(6, o.repetitionDiff == null ? null : new java.sql.Date(o.repetitionDiff.getTime()));
 			prepInsert.setInt(7, o.completed);
 			prepInsert.setDate(8, new java.sql.Date(o.dateStart.getTime()));
-			prepInsert.setInt(9, o.id);
+			prepInsert.setString(9, o.description);
+			prepInsert.setInt(10, o.finalBalance);
+			prepInsert.setInt(11, o.id);
 			prepInsert.addBatch();
 
 			prepInsert.executeBatch();
@@ -291,16 +299,17 @@ public class DataMaster {
 	}
 
 
-	private Category createCategory(String description, int balance) throws SQLException {
+	private Category createCategory(User owner, String description, int balance) throws SQLException {
 		conn.setAutoCommit(false);
 
 		Category ret = null;
 		try {
-			PreparedStatement prepInsert = conn.prepareStatement("insert into "+CATEGORIES_TABLENAME+" (Description, Balance) values (?, ?);");
+			PreparedStatement prepInsert = conn.prepareStatement("insert into "+CATEGORIES_TABLENAME+" (Description, Balance, UserId) values (?, ?, ?);");
 			PreparedStatement prepSelect = conn.prepareStatement("select last_insert_rowid();");
 
 			prepInsert.setString(1, description);
 			prepInsert.setInt(2, balance);
+			prepInsert.setInt(3, owner.id);
 			prepInsert.addBatch();
 
 			prepInsert.executeBatch();
@@ -309,7 +318,7 @@ public class DataMaster {
 			int newId = 0;
 			while(rs.next())
 				newId = rs.getInt(1);
-			ret = new Category(newId, description, balance);
+			ret = new Category(newId, owner, description, balance);
 			categories.put(newId, ret);
 			conn.commit();
 		} catch (SQLException e) {
@@ -324,10 +333,11 @@ public class DataMaster {
 	
 	private Category updateCategory(Category c) throws SQLException {
 		try {
-			PreparedStatement prepInsert = conn.prepareStatement("update "+CATEGORIES_TABLENAME+" set Description = ?, Balance = ? where Id = ?;");
+			PreparedStatement prepInsert = conn.prepareStatement("update "+CATEGORIES_TABLENAME+" set Description = ?, Balance = ?, UserId = ? where Id = ?;");
 			prepInsert.setString(1, c.description);
 			prepInsert.setInt(2, c.balance);
-			prepInsert.setInt(3, c.id);
+			prepInsert.setInt(3, c.user.id);
+			prepInsert.setInt(4, c.id);
 			prepInsert.addBatch();
 
 			prepInsert.executeBatch();
