@@ -174,9 +174,9 @@ public class DataMaster {
 			cAuto = dm.updateCategory(cAuto.setBalance(100));
 			op1 = dm.updateOperation(op1.setBalance(1000));
 			
-			dm.removeOperation(op1);
-			dm.removeCategory(cAuto);
-			dm.removeUser(uKonrad);
+//			dm.removeOperation(op1);
+//			dm.removeCategory(cAuto);
+//			dm.removeUser(uKonrad);
 
 			System.out.println();
 			System.out.println("====================");
@@ -269,6 +269,7 @@ public class DataMaster {
 		return o;
 	}
 	
+	@SuppressWarnings("unused")
 	@Deprecated
 	private Operation removeOperation(Operation o) throws SQLException {
 		conn.setAutoCommit(false);
@@ -337,6 +338,7 @@ public class DataMaster {
 		return c;
 	}
 
+	@SuppressWarnings("unused")
 	private Category removeCategory(Category c) throws SQLException {
 		conn.setAutoCommit(false);
 		try {
