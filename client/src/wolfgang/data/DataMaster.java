@@ -62,12 +62,12 @@ public class DataMaster {
 	private DataMaster() throws ClassNotFoundException, SQLException, NoSuchAlgorithmException, SecurityException, IOException {
 		Class.forName("org.sqlite.JDBC");
 		conn = DriverManager.getConnection("jdbc:sqlite:" + DATABASE_FILE);
-		conn.setAutoCommit(false);
 
 		FileHandler fh = new FileHandler("wolfgang.log",true);
 		fh.setFormatter(new SimpleFormatter());
 		logger.addHandler(fh);
 		logger.setLevel(Level.ALL);
+		loadData();
 		loadData();
 	}
 
@@ -78,9 +78,14 @@ public class DataMaster {
 	public void loadData() throws SQLException, NoSuchAlgorithmException {
 		logger.entering(this.getClass().getName(), "loadData");
 		Statement stat = null;
+		
+		//conn.setAutoCommit(true);
+		
 		try {
+			
+			
 			stat = conn.createStatement();
-
+			
 			logger.fine("Creating tables if they not exist");
 			logger.finer("create table if not exists " + USERS_TABLENAME + " " + USERS_SCHEMA + ";");
 			stat.executeUpdate("create table if not exists " + USERS_TABLENAME + " " + USERS_SCHEMA + ";");
@@ -261,8 +266,10 @@ public class DataMaster {
 			prepInsert.setInt(10, finalBalance);
 			prepInsert.addBatch();
 
+			//conn.setAutoCommit(false);
 			prepInsert.executeBatch();
 			ResultSet rs = prepSelect.executeQuery();
+			//conn.setAutoCommit(true);
 
 			int newId = 0;
 			while(rs.next())
@@ -270,10 +277,11 @@ public class DataMaster {
 			ret = new Operation(newId, users.get(user.id), categories.get(category.id), balance, finalBalance, groupId,
 					dateStart, repetitions, repetitionDiff, completed, description);
 			operations.put(newId, ret);
-			conn.commit();
+			//conn.commit();
 		} catch (SQLException e) {
-			conn.rollback();
 			throw e;
+		} finally {
+			//conn.rollback();
 		}
 
 		return ret;
@@ -303,7 +311,7 @@ public class DataMaster {
 
 			prepInsert.executeBatch();
 		} catch (SQLException e) {
-			conn.rollback();
+			//conn.rollback();
 			throw e;
 		}
 		return o;
@@ -319,9 +327,9 @@ public class DataMaster {
 			
 			prepInsert.executeBatch();
 			operations.remove(o.id);
-			conn.commit();
+			//conn.commit();
 		} catch (SQLException e) {
-			conn.rollback();
+			//conn.rollback();
 			throw e;
 		}
 		return o;
@@ -342,12 +350,7 @@ public class DataMaster {
 			PreparedStatement prepGet = conn.prepareStatement("select Id from "+CATEGORIES_TABLENAME+" where UserId = ? and description = ?;");
 			prepGet.setInt(1, owner.id);
 			prepGet.setString(2, description);
-			ResultSet rsGet = prepGet.executeQuery();
-			while(rsGet.next()) {
-				rsGet.close();
-				conn.commit();
-				return null;
-			}
+			
 			
 			PreparedStatement prepInsert = conn.prepareStatement("insert into "+CATEGORIES_TABLENAME+" (Description, Balance, UserId) values (?, ?, ?);");
 			PreparedStatement prepSelect = conn.prepareStatement("select last_insert_rowid();");
@@ -357,18 +360,34 @@ public class DataMaster {
 			prepInsert.setInt(3, owner.id);
 			prepInsert.addBatch();
 
+			//conn.setAutoCommit(false);
+			ResultSet rsGet = prepGet.executeQuery();
+			while(rsGet.next()) {
+				rsGet.close();
+				//conn.rollback();
+				return null;
+			}
+			rsGet.close();
 			prepInsert.executeBatch();
 			ResultSet rs = prepSelect.executeQuery();
+			
 
 			int newId = 0;
 			while(rs.next())
 				newId = rs.getInt(1);
+			rs.close();
+			//conn.commit();
+			//conn.setAutoCommit(true);
+			
 			ret = new Category(newId, owner, description, balance);
 			categories.put(newId, ret);
-			conn.commit();
 		} catch (SQLException e) {
-			conn.rollback();
+			//conn.rollback();
+			//conn.setAutoCommit(false);
+			//conn.rollback();
 			throw e;
+		} finally {
+			//conn.setAutoCommit(true);
 		}
 
 		return ret;
@@ -386,7 +405,7 @@ public class DataMaster {
 
 			prepInsert.executeBatch();
 		} catch (SQLException e) {
-			conn.rollback();
+			//conn.rollback();
 			throw e;
 		}
 		return c;
@@ -401,9 +420,9 @@ public class DataMaster {
 
 			prepInsert.executeBatch();
 			categories.remove(c.id);
-			conn.commit();
+			//conn.commit();
 		} catch (SQLException e) {
-			conn.rollback();
+			//conn.rollback();
 			throw e;
 		}
 		return c;
@@ -421,6 +440,9 @@ public class DataMaster {
 	private User createUser(String login, Date lastLogin, String password) throws SQLException {
 		
 		User ret = null;
+		ResultSet rsGet = null;
+		PreparedStatement prepInsert = null;
+		PreparedStatement prepSelect = null;
 		try {
 			String passwordHash;
 			passwordHash = null;
@@ -434,35 +456,48 @@ public class DataMaster {
 			GregorianCalendar cal = new GregorianCalendar();
 			cal.setTime(lastLogin);
 
+			//conn.setAutoCommit(false);
+			
 			PreparedStatement prepGet = conn.prepareStatement("select Id from "+USERS_TABLENAME+" where Login = ?;");
 			prepGet.setString(1, login);
-			ResultSet rsGet = prepGet.executeQuery();
-			while(rsGet.next()) {
-				rsGet.close();
-				conn.commit();
-				return null;
-			}
-
-			PreparedStatement prepInsert = conn.prepareStatement("insert into "+USERS_TABLENAME+" (Login, PasswordHash, LastLogin) values (?, ?, ?);");
-
+			
+			prepInsert = conn.prepareStatement("insert into "+USERS_TABLENAME+" (Login, PasswordHash, LastLogin) values (?, ?, ?);");
+			prepSelect = conn.prepareStatement("select last_insert_rowid();");
+			
 			prepInsert.setString(1, login);
 			prepInsert.setString(2, passwordHash);
 			prepInsert.setDouble(3, cal.getTimeInMillis());
 			prepInsert.addBatch();
-			prepInsert.executeBatch();
 			
-			PreparedStatement prepSelect = conn.prepareStatement("select last_insert_rowid();");
+			rsGet = prepGet.executeQuery();
+			prepGet.close();
+			while(rsGet.next())
+				return null;
+			rsGet.close();
+			prepInsert.executeBatch();
+			prepInsert.close();
 			ResultSet rs = prepSelect.executeQuery();
-
+			prepSelect.close();
+			
 			int newId = 0;
 			while(rs.next())
 				newId = rs.getInt(1);
+			rs.close();
+			//conn.commit();
+			
 			ret = new User(newId, login, lastLogin, passwordHash);
 			users.put(newId, ret);
-			conn.commit();
 		} catch (SQLException e) {
-			conn.rollback();
+			//conn.rollback();
 			throw e;
+		} finally {
+			if(rsGet!=null)
+				rsGet.close();
+			if(prepInsert!=null)
+				prepInsert.close();
+			if(prepSelect!=null)
+				prepSelect.close();
+			//conn.setAutoCommit(true);
 		}
 
 		return ret;
@@ -485,7 +520,7 @@ public class DataMaster {
 			prepInsert.executeBatch();
 			
 		} catch (SQLException e) {
-			conn.rollback();
+			//conn.rollback();
 			throw e;
 		}
 
@@ -500,9 +535,9 @@ public class DataMaster {
 
 			prepInsert.executeBatch();
 			users.remove(u.id);
-			conn.commit();
+			//conn.commit();
 		} catch (SQLException e) {
-			conn.rollback();
+			//conn.rollback();
 			throw e;
 		}
 		return u;

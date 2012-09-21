@@ -44,6 +44,7 @@ public class MainWindow {
 
 	private DataMaster dm;
 	private User logged;
+	public OperationTable tableWithOperations;
 	
 	public MainWindow() throws ClassNotFoundException, NoSuchAlgorithmException, SecurityException, SQLException, IOException {
 		super();
@@ -197,21 +198,9 @@ public class MainWindow {
 			int i = 0;
 			// this is map
 			for(Operation o : res)
-					data[i++] = new Object[] { o.category.description, o.description, formatter.format(o.dateStart), o.balance, o.finalBalance };
+					data[i++] = new Object[] { o.category.description, o.description, formatter.format(o.dateStart), ((float)o.balance)/100.0, o.finalBalance };
 			
 			tm.setDataVector(data, colNames);
-		}
-		
-		public OperationTable() {
-			super(new GridLayout(1, 1));
-			
-			tm = new DefaultTableModel();
-			
-			reloadData();
-			
-			table = new JTable(tm);
-			table.setPreferredScrollableViewportSize(new Dimension(500, 300));
-			table.setFillsViewportHeight(true);
 			
 			table.getColumnModel().getColumn(0).setPreferredWidth(100);
 			
@@ -229,6 +218,17 @@ public class MainWindow {
 			
 			table.getColumnModel().getColumn(4).setPreferredWidth(80);
 			table.getColumnModel().getColumn(4).setCellRenderer(rightAlign);
+		}
+		
+		public OperationTable() {
+			super(new GridLayout(1, 1));
+			
+			tm = new DefaultTableModel();
+			table = new JTable(tm);
+			table.setPreferredScrollableViewportSize(new Dimension(500, 300));
+			table.setFillsViewportHeight(true);
+			
+			reloadData();
 			
 			add(new JScrollPane(table));
 		}
@@ -315,14 +315,18 @@ public class MainWindow {
 		c.fill = GridBagConstraints.HORIZONTAL;
 		frame.add(cmbo_str,c);
 		
-		btn = new JButton("Dodaj kategorię");
+		btn = new JButton("Dodaj operację");
 		btn.addActionListener(new ActionListener() {
 			@Override public void actionPerformed(ActionEvent e) {
-				String descr = (String) cmbo_str.getSelectedObjects()[0];				
-				Category ctg = dm.getCategoryByName(descr);
+				
+				
 				boolean ok = false;
 				try {
-					dm.createOperation(logged, ctg, 0, 0, new Integer(0), new Date(), 0, new Date(0), 0, descr);
+					String descr = (String) cmbo_str.getSelectedObjects()[0];				
+					Category ctg = dm.getCategoryByName(descr);
+					Float flt = Float.parseFloat(tf.getText());
+					dm.createOperation(logged, ctg, (int) (flt * 100), 0, new Integer(0), new Date(), 0, new Date(0), 0, descr);
+					tableWithOperations.reloadData();
 					ok = true;
 				} catch (SQLException e1) {
 					e1.printStackTrace();
@@ -345,6 +349,58 @@ public class MainWindow {
 		return frame;
 	}	
 	
+	private JFrame genAddCategoryPane() {
+		final JFrame frame = new JFrame("Wolfgang - dodaj kategorię");
+		
+		GridBagLayout layout = new GridBagLayout();
+		GridBagConstraints c = new GridBagConstraints();
+		frame.setLayout(layout);
+		
+		JLabel lbl;
+		JButton btn;
+				
+		lbl = new JLabel("opis:");
+		c.gridy = 0;
+		c.gridx = 0;
+		c.weightx = 0;
+		c.weighty = 100;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		frame.add(lbl,c);
+		
+		final JTextField dtf = new JTextField("");
+		c.gridy = 0;
+		c.gridx = 1;
+		c.weightx = 200;
+		c.weighty = 100;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		frame.add(dtf,c); 
+
+		
+		btn = new JButton("Dodaj kategorię");
+		btn.addActionListener(new ActionListener() {
+			@Override public void actionPerformed(ActionEvent e) {
+				try {
+					dm.createOrGetCategory(logged, dtf.getText(), 0);
+				} catch (SQLException e1) {
+					e1.printStackTrace();
+					JOptionPane.showMessageDialog(loginFrame, "Błąd");
+				}
+				frame.dispose();
+			}
+		});
+		c.gridy = 1;
+		c.gridx = 1;
+		c.weightx = 200;
+		c.weighty = 100;
+		c.fill = GridBagConstraints.LINE_END;
+		frame.add(btn, c);
+		
+		//frame.setSize(350, 400);
+		frame.setMinimumSize(new Dimension(350, 0));
+		frame.pack();
+		return frame;
+	}	
+	
 	
 	private JPanel genOperacjePane() {
 		JPanel ret = new JPanel(false);
@@ -354,37 +410,52 @@ public class MainWindow {
 		GridBagConstraints c = new GridBagConstraints();
 		JButton button;
 		
-		OperationTable table = new OperationTable();
+		tableWithOperations = new OperationTable();
 		c.gridy = 0;
 		c.gridx = 0;
 		c.weightx = 200;
 		c.weighty = 100;
 		c.fill = GridBagConstraints.BOTH;
-		ret.add(table,c);
+		ret.add(tableWithOperations,c);
 		
-		button = new JButton("Dodaj operację");
+		GridLayout fl = new GridLayout(2,1);
+		JPanel inn = new JPanel(false);
+		inn.setLayout(fl);
+		
 		c.weightx = 50;
 		c.weighty = 50;
 		c.gridy = 0;
 		c.gridx = 1;
 		c.fill = GridBagConstraints.NORTH;
 		c.anchor = GridBagConstraints.PAGE_START;
+		ret.add(inn, c);
+		
+		button = new JButton("Dodaj operację");
 		button.addActionListener(new ActionListener() {
 			@Override public void actionPerformed(ActionEvent e) {
 				genAddOperationPane().setVisible(true);
 			}
 		});
-		ret.add(button,c);
+		inn.add(button, 0);
+		
+		
+		button = new JButton("Dodaj kategorię");	
+		button.addActionListener(new ActionListener() {
+			@Override public void actionPerformed(ActionEvent e) {
+				genAddCategoryPane().setVisible(true);
+			}
+		});
+		inn.add(button, 1);
 		
 		button = new JButton("lol10");
-		c.gridy = 1;
+		c.gridy = 2;
 		c.gridx = 0;
 		c.fill = GridBagConstraints.NORTHWEST;
 		c.anchor = GridBagConstraints.FIRST_LINE_START;
 		ret.add(button,c);
 		
 		button = new JButton("lol11");
-		c.gridy = 1;
+		c.gridy = 2;
 		c.gridx = 1;
 		c.fill = GridBagConstraints.NORTHEAST;
 		c.anchor = GridBagConstraints.LAST_LINE_END;
