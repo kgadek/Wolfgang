@@ -42,12 +42,14 @@ import wolfgang.data.mapper.Operation;
 import wolfgang.data.mapper.User;
 import wolfgang.utils.Utils;
 import wolfgang.utils.Utils.Function2;
+import wolfgang.utils.Utils.Function3;
 
 public class MainWindow {
 
 	private DataMaster dm;
 	private User logged;
 	public OperationTable tableWithOperations;
+	public JLabel lbl_balance;
 	
 	public MainWindow() throws ClassNotFoundException, NoSuchAlgorithmException, SecurityException, SQLException, IOException {
 		super();
@@ -220,6 +222,13 @@ public class MainWindow {
 			DefaultTableCellRenderer rightAlign = new DefaultTableCellRenderer();
 			rightAlign.setHorizontalAlignment(JLabel.RIGHT);
 			table.getColumnModel().getColumn(3).setCellRenderer(rightAlign);
+			
+			Integer sum = Utils.reduce(new Function3<Integer, Operation, Integer>() {
+				@Override public Integer apply(Integer x, Operation y) {
+					return x + y.balance;
+				}
+			}, new Integer(0), dm.getOperations());
+			lbl_balance.setText(String.valueOf(((float)(sum)) / 100.0));
 		}
 		
 		public OperationTable() {
@@ -430,6 +439,8 @@ public class MainWindow {
 		GridBagConstraints c = new GridBagConstraints();
 		JButton button;
 		
+		lbl_balance = new JLabel("0.00");
+		
 		tableWithOperations = new OperationTable();
 		c.gridy = 0;
 		c.gridx = 0;
@@ -494,12 +505,11 @@ public class MainWindow {
 		});
 		inn.add(button, 2);
 				
-		button = new JButton("lol10");
 		c.gridy = 2;
 		c.gridx = 0;
 		c.fill = GridBagConstraints.NORTHWEST;
 		c.anchor = GridBagConstraints.FIRST_LINE_START;
-		ret.add(button,c);
+		ret.add(lbl_balance,c);
 		
 		button = new JButton("lol11");
 		c.gridy = 2;

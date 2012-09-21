@@ -20,11 +20,21 @@ public class Utils {
 		public B apply(A x);
 	}
 	
+	public interface Function3<A,B,C> { // function A -> B -> C
+		public C apply(A x, B y);
+	}
+	
 	public static <X,Y> Collection<Y> map2(Function2<X,Y> fun, Collection<X> xs) {
 		Collection<Y> ret = new ArrayList<>(xs.size());
 		for(X x : xs)
 			ret.add(fun.apply(x));
 		return ret;
+	}
+	
+	public static <X,Y> X reduce(Function3<X,Y,X> fun, X init, Collection<Y> ys) {
+		for(Y y : ys)
+			init = fun.apply(init, y);
+		return init;
 	}
 
 }
