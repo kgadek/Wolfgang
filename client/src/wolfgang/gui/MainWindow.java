@@ -9,7 +9,9 @@ import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
+import java.text.DateFormat;
 import java.text.Format;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -22,6 +24,7 @@ import javax.swing.InputVerifier;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -181,7 +184,7 @@ public class MainWindow {
 		private DefaultTableModel tm;
 		
 		public void reloadData() {
-			String[] colNames = { "Kategoria", "Opis", "Data", "Bilans", "Saldo" };
+			String[] colNames = { "Kategoria", "Opis", "Data", "Bilans"};
 			Format formatter = new SimpleDateFormat("yyyy-MM-dd");
 			Collection<Operation> oops = wolfgang.utils.Utils.filter(dm.getOperations(), new Utils.Predicate<Operation>() {
 				@Override public boolean apply(Operation type) {
@@ -192,13 +195,15 @@ public class MainWindow {
 			List<Operation> res = new ArrayList<Operation>(oops);
 			Collections.sort(res, new Comparator<Operation>() {
 				@Override public int compare(Operation o1, Operation o2) {
+					if(o1.dateStart == null || o2.dateStart == null)
+						return -1;
 					return (int) (o2.dateStart.getTime() - o1.dateStart.getTime());
 				}
 			});
 			int i = 0;
 			// this is map
 			for(Operation o : res)
-					data[i++] = new Object[] { o.category.description, o.description, formatter.format(o.dateStart), ((float)o.balance)/100.0, o.finalBalance };
+				data[i++] = new Object[] { o.category.description, o.description, o.dateStart==null?"?":formatter.format(o.dateStart), ((float)o.balance)/100.0};
 			
 			tm.setDataVector(data, colNames);
 			
@@ -215,9 +220,6 @@ public class MainWindow {
 			DefaultTableCellRenderer rightAlign = new DefaultTableCellRenderer();
 			rightAlign.setHorizontalAlignment(JLabel.RIGHT);
 			table.getColumnModel().getColumn(3).setCellRenderer(rightAlign);
-			
-			table.getColumnModel().getColumn(4).setPreferredWidth(80);
-			table.getColumnModel().getColumn(4).setCellRenderer(rightAlign);
 		}
 		
 		public OperationTable() {
@@ -315,28 +317,46 @@ public class MainWindow {
 		c.fill = GridBagConstraints.HORIZONTAL;
 		frame.add(cmbo_str,c);
 		
+		lbl = new JLabel("data:");
+		c.gridy = 3;
+		c.gridx = 0;
+		c.weightx = 0;
+		c.weighty = 100;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		frame.add(lbl,c);
+		
+		final JTextField dt = new JTextField("");
+		c.gridy = 3;
+		c.gridx = 1;
+		c.weightx = 200;
+		c.weighty = 100;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		frame.add(dt,c);
+		
 		btn = new JButton("Dodaj operację");
 		btn.addActionListener(new ActionListener() {
 			@Override public void actionPerformed(ActionEvent e) {
-				
-				
 				boolean ok = false;
 				try {
+					DateFormat a = DateFormat.getDateInstance();
 					String descr = (String) cmbo_str.getSelectedObjects()[0];				
 					Category ctg = dm.getCategoryByName(descr);
 					Float flt = Float.parseFloat(tf.getText());
-					dm.createOperation(logged, ctg, (int) (flt * 100), 0, new Integer(0), new Date(), 0, new Date(0), 0, descr);
+					dm.createOperation(logged, ctg, (int) (flt * 100), (int) (flt * 100)+logged.balance, null, a.parse(dt.getText()), 0, null, 0, descr);
 					tableWithOperations.reloadData();
 					ok = true;
 				} catch (SQLException e1) {
 					e1.printStackTrace();
 					JOptionPane.showMessageDialog(loginFrame, "Błąd");
+				} catch (ParseException e1) {
+					e1.printStackTrace();
+					JOptionPane.showMessageDialog(loginFrame, "Błąd: zła data");
 				}
 				if(ok)
 					frame.dispose();
 			}
 		});
-		c.gridy = 3;
+		c.gridy = 4;
 		c.gridx = 1;
 		c.weightx = 200;
 		c.weighty = 100;
@@ -418,7 +438,7 @@ public class MainWindow {
 		c.fill = GridBagConstraints.BOTH;
 		ret.add(tableWithOperations,c);
 		
-		GridLayout fl = new GridLayout(2,1);
+		GridLayout fl = new GridLayout(3,1);
 		JPanel inn = new JPanel(false);
 		inn.setLayout(fl);
 		
@@ -447,6 +467,33 @@ public class MainWindow {
 		});
 		inn.add(button, 1);
 		
+		button = new JButton("Usuń operację");
+		button.addActionListener(new ActionListener() {
+			@Override public void actionPerformed(ActionEvent e) {
+				JOptionPane pane = new JOptionPane(
+						"To be or not to be ?\nThat is the question.\nWhether thy want me to remove thy operation\nOr shall not I touch it - that's a suggestion.");
+				Object[] options = new String[] { "To be, leave it sir", "Not to be, dispose thy" };
+				pane.setOptions(options);
+				JDialog dialog = pane.createDialog(new JFrame(), "Wolfgang - remove thy operation");
+				dialog.setVisible(true);
+				Object obj = pane.getValue(); 
+				int result = -1;
+				for (int k = 0; k < options.length; k++)
+					if (options[k].equals(obj))
+						result = k;
+				if(result == 1) {
+					try {
+						dm.removeOperation(((Operation)dm.getOperations().toArray()[tableWithOperations.table.getSelectedRow()]));
+					} catch (SQLException e1) {
+						e1.printStackTrace();
+					}
+				}
+				
+				tableWithOperations.reloadData();
+			}
+		});
+		inn.add(button, 2);
+				
 		button = new JButton("lol10");
 		c.gridy = 2;
 		c.gridx = 0;

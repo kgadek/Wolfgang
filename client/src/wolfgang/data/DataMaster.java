@@ -68,7 +68,6 @@ public class DataMaster {
 		logger.addHandler(fh);
 		logger.setLevel(Level.ALL);
 		loadData();
-		loadData();
 	}
 
 	private ConcurrentHashMap<Integer, User> users = new ConcurrentHashMap<Integer, User>();
@@ -153,6 +152,8 @@ public class DataMaster {
 							rs.getDate("DateStart"), rs.getInt("Repetitions"), rs.getDate("RepetitionDiff"), rs.getInt("Completed"),
 							rs.getString("Description"));
 					operations.put(newOp.id, newOp);
+					
+					newOp.user.balance += newOp.balance;
 				}
 			} finally {
 				if(rs!=null)
@@ -277,6 +278,7 @@ public class DataMaster {
 			ret = new Operation(newId, users.get(user.id), categories.get(category.id), balance, finalBalance, groupId,
 					dateStart, repetitions, repetitionDiff, completed, description);
 			operations.put(newId, ret);
+			user.balance += balance;
 			//conn.commit();
 		} catch (SQLException e) {
 			throw e;
@@ -317,9 +319,7 @@ public class DataMaster {
 		return o;
 	}
 	
-	@SuppressWarnings("unused")
-	@Deprecated
-	private Operation removeOperation(Operation o) throws SQLException {
+	public Operation removeOperation(Operation o) throws SQLException {
 		try {
 			PreparedStatement prepInsert = conn.prepareStatement("delete from "+OPERATIONS_TABLENAME+" where Id = ? ;");
 			prepInsert.setInt(1, o.id);
@@ -477,12 +477,13 @@ public class DataMaster {
 			prepInsert.executeBatch();
 			prepInsert.close();
 			ResultSet rs = prepSelect.executeQuery();
-			prepSelect.close();
+			
 			
 			int newId = 0;
 			while(rs.next())
 				newId = rs.getInt(1);
 			rs.close();
+			prepSelect.close();
 			//conn.commit();
 			
 			ret = new User(newId, login, lastLogin, passwordHash);

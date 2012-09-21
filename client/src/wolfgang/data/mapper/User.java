@@ -11,6 +11,7 @@ public final class User {
 	public final String login;
 	public final Date lastLogin;
 	public final String passwordHash;
+	public int balance;
 
 	public User(User u) {
 		super();
@@ -59,6 +60,9 @@ public final class User {
 		StringBuilder sb = new StringBuilder("#User{");
 		sb.append("id=");
 		sb.append(id);
+		sb.append(", ");
+		sb.append("balance=");
+		sb.append(balance);
 		sb.append(", ");
 		sb.append("login=");
 		sb.append(login);
