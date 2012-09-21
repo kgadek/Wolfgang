@@ -48,6 +48,7 @@ public final class User {
 	public static String genPasswordHash(String pass, String login) throws NoSuchAlgorithmException {
 		MessageDigest md = MessageDigest.getInstance("SHA-256");
 		md.update(pass.getBytes());
+		md.update("### SÓL SOLI SOLĄ NIE ZASOLI ###".getBytes()); // salting of hash
 		md.update(login.getBytes());
 		return DataMaster.bytesToString(md.digest());
 	}
