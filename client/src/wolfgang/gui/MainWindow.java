@@ -374,23 +374,23 @@ public class MainWindow {
 
 
 			// ASCII ART!!
-			final int toTake = 5;
-			final int scale = 5;
-			Collection<Operation> recent = Utils.reverse_c(Utils.take(toTake, res));
+			final int toTake = 9;
+			final int scale = 10;
+			Collection<Operation> recent = Utils.take(toTake, res);
 			Integer maxi = Utils.max(recent, new Function2<Integer, Operation, Integer>() {
 				@Override public Integer apply(Integer x, Operation y) {
-					if(x == null) return y.balance;
-					return y.balance > x ? y.balance : x;
+					if(x == null) return y.finalBalance;
+					return x.compareTo(y.finalBalance) < 0 ? y.finalBalance : x;
 				}});
 			Integer mini = Utils.max(recent, new Function2<Integer, Operation, Integer>() {
 				@Override public Integer apply(Integer x, Operation y) {
-					if(x == null) return y.balance;
-					return y.balance < x ? y.balance : x;
+					if(x == null) return y.finalBalance;
+					return x.compareTo(y.finalBalance) > 0 ? y.finalBalance : x;
 				}});
 			if(maxi != mini) {
 				for(int i=scale-1;i>=0;--i) {
 					for(Operation o : recent)
-						System.out.print(o.balance*1.0 > ((float)i*(maxi))/(10.0) ? "---" : "   ");
+						System.out.print(o.finalBalance*1.0 > ((float)i*(maxi))/(10.0) ? "---" : "   ");
 					System.out.println();
 				}
 				for(@SuppressWarnings("unused") Operation o : recent)
@@ -398,7 +398,7 @@ public class MainWindow {
 				System.out.println();
 				for(int i=0;i<scale;++i) {
 					for(Operation o : recent)
-						System.out.print(o.balance*1.0 < ((float)i*(mini))/(10.0) ? "---" : "   ");
+						System.out.print(o.finalBalance*1.0 < ((float)i*(mini))/(10.0) ? "---" : "   ");
 					System.out.println();
 				}
 			}
@@ -504,8 +504,7 @@ public class MainWindow {
 							String descr = (String) cmbo_str.getSelectedObjects()[0];				
 							Category ctg = dm.getCategoryByName(descr);
 							Float flt = Float.parseFloat(tf.getText());
-							dm.createOperation(logged, ctg, (int) (flt * 100), (int) (flt * 100)+logged.balance, null, a.parse(dt.getText()), 0, null, 0, descr);
-							//tableWithOperations.reloadData();
+							dm.createOperation(logged, ctg, (int) (flt * 100), (int) (flt * 100)+logged.balance, null, a.parse(dt.getText()), 0, null, 0, dtf.getText());
 							Utils.evalAll(updaters);
 							ok = true;
 						} catch (SQLException e1) {
