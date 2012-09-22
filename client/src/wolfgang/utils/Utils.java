@@ -64,6 +64,6 @@ public class Utils {
 		Y m = null;
 		for(X x : xs)
 			m = fun.apply(m,x);
-		return m;
+		return m;		
 	}
 }

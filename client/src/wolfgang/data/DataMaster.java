@@ -78,11 +78,9 @@ public class DataMaster {
 		logger.entering(this.getClass().getName(), "loadData");
 		Statement stat = null;
 		
-		//conn.setAutoCommit(true);
+		conn.setAutoCommit(true);
 		
 		try {
-			
-			
 			stat = conn.createStatement();
 			
 			logger.fine("Creating tables if they not exist");
@@ -164,7 +162,9 @@ public class DataMaster {
 			logger.info("Users: "+users.size()+" Categories: "+categories.size()+" Operations: "+operations.size());
 
 		} finally {
-			stat.close();
+			if(stat != null)
+				stat.close();
+			stat = null;
 			logger.exiting(this.getClass().getName(), "loadData");
 		}
 	}
@@ -231,10 +231,9 @@ public class DataMaster {
 	public User checkLogin(String login, String password) {
 		try {
 			String passwordHash = User.genPasswordHash(password, login);
-			for(User u : users.values()) {
+			for(User u : users.values())
 				if(u.login.equals(login) && u.passwordHash.equals(passwordHash))
 					return u;
-			}
 		} catch (NoSuchAlgorithmException e) {
 			e.printStackTrace();
 		}
@@ -245,15 +244,18 @@ public class DataMaster {
 			int repetitions, Date repetitionDiff, int completed, String description) throws SQLException {
 
 		Operation ret = null;
+		ResultSet rs = null;
+		PreparedStatement prepInsert = null;
+		PreparedStatement prepSelect = null;
 		try {
 			if(groupId != null && groupId == 0)
 				groupId = null;
 
-			PreparedStatement prepInsert = conn.prepareStatement("insert into "+OPERATIONS_TABLENAME+
+			prepInsert = conn.prepareStatement("insert into "+OPERATIONS_TABLENAME+
 					" (Balance, UserId, CategoryId, GroupId, Repetitions, RepetitionDiff, Completed," +
 					" DateStart, Description, FinalBalance)" +
 					" values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
-			PreparedStatement prepSelect = conn.prepareStatement("select last_insert_rowid();");
+			prepSelect = conn.prepareStatement("select last_insert_rowid();");
 
 			prepInsert.setInt(1, balance);
 			prepInsert.setInt(2, user.id);
@@ -267,10 +269,9 @@ public class DataMaster {
 			prepInsert.setInt(10, finalBalance);
 			prepInsert.addBatch();
 
-			//conn.setAutoCommit(false);
+			conn.setAutoCommit(false);
 			prepInsert.executeBatch();
-			ResultSet rs = prepSelect.executeQuery();
-			//conn.setAutoCommit(true);
+			rs = prepSelect.executeQuery();
 
 			int newId = 0;
 			while(rs.next())
@@ -279,11 +280,14 @@ public class DataMaster {
 					dateStart, repetitions, repetitionDiff, completed, description);
 			operations.put(newId, ret);
 			user.balance += balance;
-			//conn.commit();
 		} catch (SQLException e) {
+			conn.rollback();
 			throw e;
 		} finally {
-			//conn.rollback();
+			if(rs!=null) rs.close();
+			if(prepInsert!=null) prepInsert.close();
+			if(prepSelect!=null) prepSelect.close();
+			conn.setAutoCommit(true);
 		}
 
 		return ret;
@@ -324,17 +328,22 @@ public class DataMaster {
 	}
 	
 	public Operation removeOperation(Operation o) throws SQLException {
+		PreparedStatement prepInsert = null;
 		try {
-			PreparedStatement prepInsert = conn.prepareStatement("delete from "+OPERATIONS_TABLENAME+" where Id = ? ;");
+			conn.setAutoCommit(false);
+			
+			prepInsert = conn.prepareStatement("delete from "+OPERATIONS_TABLENAME+" where Id = ? ;");
 			prepInsert.setInt(1, o.id);
 			prepInsert.addBatch();
 			
 			prepInsert.executeBatch();
 			operations.remove(o.id);
-			//conn.commit();
 		} catch (SQLException e) {
-			//conn.rollback();
+			conn.rollback();
 			throw e;
+		} finally {
+			if(prepInsert!=null) prepInsert.close();
+			conn.setAutoCommit(true);
 		}
 		return o;
 	}
@@ -350,48 +359,51 @@ public class DataMaster {
 	private Category createCategory(User owner, String description, int balance) throws SQLException {
 
 		Category ret = null;
+		PreparedStatement prepGet = null;
+		PreparedStatement prepInsert = null;
+		PreparedStatement prepSelect = null;
+		ResultSet rsGet = null;
+		ResultSet rs = null;
 		try {
-			PreparedStatement prepGet = conn.prepareStatement("select Id from "+CATEGORIES_TABLENAME+" where UserId = ? and description = ?;");
+			prepGet = conn.prepareStatement("select Id from "+CATEGORIES_TABLENAME+" where UserId = ? and description = ?;");
 			prepGet.setInt(1, owner.id);
 			prepGet.setString(2, description);
 			
-			
-			PreparedStatement prepInsert = conn.prepareStatement("insert into "+CATEGORIES_TABLENAME+" (Description, Balance, UserId) values (?, ?, ?);");
-			PreparedStatement prepSelect = conn.prepareStatement("select last_insert_rowid();");
+			prepInsert = conn.prepareStatement("insert into "+CATEGORIES_TABLENAME+" (Description, Balance, UserId) values (?, ?, ?);");
+			prepSelect = conn.prepareStatement("select last_insert_rowid();");
 
 			prepInsert.setString(1, description);
 			prepInsert.setInt(2, balance);
 			prepInsert.setInt(3, owner.id);
 			prepInsert.addBatch();
 
-			//conn.setAutoCommit(false);
-			ResultSet rsGet = prepGet.executeQuery();
+			conn.setAutoCommit(false);
+			rsGet = prepGet.executeQuery();
 			while(rsGet.next()) {
 				rsGet.close();
-				//conn.rollback();
+				conn.rollback();
 				return null;
 			}
 			rsGet.close();
 			prepInsert.executeBatch();
-			ResultSet rs = prepSelect.executeQuery();
+			rs = prepSelect.executeQuery();
 			
-
 			int newId = 0;
 			while(rs.next())
 				newId = rs.getInt(1);
-			rs.close();
-			//conn.commit();
-			//conn.setAutoCommit(true);
 			
 			ret = new Category(newId, owner, description, balance);
 			categories.put(newId, ret);
 		} catch (SQLException e) {
-			//conn.rollback();
-			//conn.setAutoCommit(false);
-			//conn.rollback();
+			conn.rollback();
 			throw e;
 		} finally {
-			//conn.setAutoCommit(true);
+			if(prepGet!=null) prepGet.close();
+			if(prepInsert!=null) prepInsert.close();
+			if(prepSelect!=null) prepSelect.close();
+			if(rsGet!=null) rsGet.close();
+			if(rs!=null) rs.close();
+			conn.setAutoCommit(true);
 		}
 
 		return ret;
@@ -447,6 +459,7 @@ public class DataMaster {
 		ResultSet rsGet = null;
 		PreparedStatement prepInsert = null;
 		PreparedStatement prepSelect = null;
+		PreparedStatement prepGet = null;
 		try {
 			String passwordHash;
 			passwordHash = null;
@@ -460,9 +473,7 @@ public class DataMaster {
 			GregorianCalendar cal = new GregorianCalendar();
 			cal.setTime(lastLogin);
 
-			//conn.setAutoCommit(false);
-			
-			PreparedStatement prepGet = conn.prepareStatement("select Id from "+USERS_TABLENAME+" where Login = ?;");
+			prepGet = conn.prepareStatement("select Id from "+USERS_TABLENAME+" where Login = ?;");
 			prepGet.setString(1, login);
 			
 			prepInsert = conn.prepareStatement("insert into "+USERS_TABLENAME+" (Login, PasswordHash, LastLogin) values (?, ?, ?);");
@@ -472,49 +483,42 @@ public class DataMaster {
 			prepInsert.setString(2, passwordHash);
 			prepInsert.setDouble(3, cal.getTimeInMillis());
 			prepInsert.addBatch();
+
+			conn.setAutoCommit(false);
 			
 			rsGet = prepGet.executeQuery();
-			prepGet.close();
 			while(rsGet.next())
 				return null;
-			rsGet.close();
 			prepInsert.executeBatch();
-			prepInsert.close();
 			ResultSet rs = prepSelect.executeQuery();
-			
 			
 			int newId = 0;
 			while(rs.next())
 				newId = rs.getInt(1);
-			rs.close();
-			prepSelect.close();
-			//conn.commit();
 			
 			ret = new User(newId, login, lastLogin, passwordHash);
 			users.put(newId, ret);
 		} catch (SQLException e) {
-			//conn.rollback();
+			conn.rollback();
 			throw e;
 		} finally {
-			if(rsGet!=null)
-				rsGet.close();
-			if(prepInsert!=null)
-				prepInsert.close();
-			if(prepSelect!=null)
-				prepSelect.close();
-			//conn.setAutoCommit(true);
+			if(rsGet!=null) rsGet.close();
+			if(prepInsert!=null) prepInsert.close();
+			if(prepSelect!=null) prepSelect.close();
+			if(prepGet!=null) prepGet.close();
+			conn.setAutoCommit(true);
 		}
 
 		return ret;
 	}
 	
 	public User updateUser(User u) throws SQLException {
-
+		PreparedStatement prepInsert = null;
 		try {
 			GregorianCalendar cal = new GregorianCalendar();
 			cal.setTime(u.lastLogin);
 
-			PreparedStatement prepInsert = conn.prepareStatement("update "+USERS_TABLENAME+" set Login = ?, PasswordHash = ?, LastLogin = ? where Id = ?;");
+			prepInsert = conn.prepareStatement("update "+USERS_TABLENAME+" set Login = ?, PasswordHash = ?, LastLogin = ? where Id = ?;");
 
 			prepInsert.setString(1, u.login);
 			prepInsert.setString(2, u.passwordHash);
@@ -522,28 +526,35 @@ public class DataMaster {
 			prepInsert.setInt(4, u.id);
 			prepInsert.addBatch();
 
+			conn.setAutoCommit(false);
 			prepInsert.executeBatch();
 			
 		} catch (SQLException e) {
-			//conn.rollback();
+			conn.rollback();
 			throw e;
+		} finally {
+			if(prepInsert!=null) prepInsert.close();
+			conn.setAutoCommit(true);
 		}
 
 		return u;
 	}
 	
 	public User removeUser(User u) throws SQLException {
+		PreparedStatement prepInsert = null;
 		try {
-			PreparedStatement prepInsert = conn.prepareStatement("delete from "+USERS_TABLENAME+" where Id = ? ;");
+			prepInsert = conn.prepareStatement("delete from "+USERS_TABLENAME+" where Id = ? ;");
 			prepInsert.setInt(1, u.id);
 			prepInsert.addBatch();
 
 			prepInsert.executeBatch();
 			users.remove(u.id);
-			//conn.commit();
 		} catch (SQLException e) {
-			//conn.rollback();
+			conn.rollback();
 			throw e;
+		} finally {
+			if(prepInsert!=null) prepInsert.close();
+			conn.setAutoCommit(true);
 		}
 		return u;
 	}
