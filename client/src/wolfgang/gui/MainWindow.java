@@ -41,6 +41,7 @@ import wolfgang.data.mapper.Category;
 import wolfgang.data.mapper.Operation;
 import wolfgang.data.mapper.User;
 import wolfgang.utils.Utils;
+import wolfgang.utils.Utils.Function0;
 import wolfgang.utils.Utils.Function1;
 import wolfgang.utils.Utils.Function2;
 
@@ -51,16 +52,21 @@ public class MainWindow {
 	public OperationTable tableWithOperations;
 	public JLabel lbl_balance;
 
-	public MainWindow() throws ClassNotFoundException, NoSuchAlgorithmException, SecurityException, SQLException, IOException {
-		super();
-		dm = DataMaster.getInstance();
-	}
-
 	private static MainWindow mainWindow;
 	private static JFrame loginFrame;
 	private static JTextField loginTextField;
 	private static JTextField passTextField;
+	public OperationTableForCats tableWithOperationsForCats;
+	public TableWithCategories tableWithCategories;
+	
+	private ArrayList<Function0<Integer>> updaters = new ArrayList<Function0<Integer>>();
+	public Utils.Function1<Category, Integer> tablForCatsUpdater;
 
+	public MainWindow() throws ClassNotFoundException, NoSuchAlgorithmException, SecurityException, SQLException, IOException {
+		super();
+		dm = DataMaster.getInstance();
+	}
+	
 	public static void main(String[] args) {
 		javax.swing.SwingUtilities.invokeLater(new Runnable() {
 			@Override public void run() {
@@ -134,8 +140,8 @@ public class MainWindow {
 
 		JTabbedPane mainPane = new JTabbedPane();
 
-		JComponent podsumowaniePane = genPodsumowaniePane();
-		mainPane.addTab("Podsumowanie", podsumowaniePane);
+//		JComponent podsumowaniePane = genPodsumowaniePane();
+//		mainPane.addTab("Podsumowanie", podsumowaniePane);
 
 		JComponent operacjePane = genOperacjePane();
 		mainPane.addTab("Operacje", operacjePane);
@@ -143,19 +149,164 @@ public class MainWindow {
 		JComponent kategoriePane = genKategoriePane();
 		mainPane.addTab("Kategorie", kategoriePane);
 
-		mainPane.setSelectedIndex(1);
+		mainPane.setSelectedIndex(0);
 		mainFrame.add(mainPane);
-
+		
 		mainFrame.setSize(700, 500);
 		return mainFrame;
 	}
 
+	@SuppressWarnings("unused")
 	private static JPanel genPodsumowaniePane() {
 		return new JPanel(false);
 	}
 
-	private static JPanel genKategoriePane() {
-		return new JPanel(false);
+	private JPanel genKategoriePane() {
+		JPanel ret = new JPanel(false);
+		GridBagLayout layout = new GridBagLayout();
+		ret.setLayout(layout);
+		
+		GridBagConstraints c = new GridBagConstraints();
+
+		tableWithCategories = new TableWithCategories();
+		c.gridy = 0;
+		c.gridx = 0;
+		c.weightx = 200;
+		c.weighty = 50;
+		c.fill = GridBagConstraints.BOTH;
+		ret.add(tableWithCategories, c);
+		
+		JButton btn = new JButton("Wybierz");
+		c.gridy = 1;
+		c.weighty = 10;	
+		c.fill = GridBagConstraints.LINE_END;
+		btn.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				int row = tableWithCategories.table.getSelectedRow();
+				if(row == -1)
+					return;
+				tablForCatsUpdater.apply((Category) dm.getCategories().toArray()[row]);
+			}});
+		ret.add(btn,c);
+		
+		tableWithOperationsForCats = new OperationTableForCats();
+		c.gridy = 2;
+		c.weighty = 100;
+		c.fill = GridBagConstraints.BOTH;
+		ret.add(tableWithOperationsForCats,c);
+
+		return ret;
+	}
+	
+	@SuppressWarnings("serial")
+	public class OperationTableForCats extends JPanel {
+		private JTable table;
+		private DefaultTableModel tm;
+
+		public void reloadData(final Category c) {
+			String[] colNames = { "Kategoria", "Opis", "Data", "Bilans"};
+			final Format formatter = new SimpleDateFormat("yyyy-MM-dd");
+
+			// filter -> sort -> map
+			List<Operation> res = (List<Operation>) wolfgang.utils.Utils.filter(dm.getOperations(), new Utils.Predicate<Operation>() {
+				@Override public boolean apply(Operation type) {
+					if(c == null) return false;
+					return type.user.id == logged.id && type.category.id == c.id;
+				}});
+			Collections.sort(res, new Comparator<Operation>() {
+				@Override public int compare(Operation o1, Operation o2) {
+					if(o1.dateStart == null || o2.dateStart == null) return -1;
+					return (int) (o2.dateStart.getTime() - o1.dateStart.getTime());
+				}});
+			Collection<Object[]> data = Utils.map2(new Function1<Operation, Object[]>() {
+				@Override public Object[] apply(Operation o) {
+					return new Object[] { o.category.description, o.description, o.dateStart==null?"?":formatter.format(o.dateStart), ((float)o.balance)/100.0};
+				}}, res);
+
+			tm.setDataVector(data.toArray(new Object[res.size()][]), colNames);
+
+			table.getColumnModel().getColumn(0).setPreferredWidth(100);
+			table.getColumnModel().getColumn(1).setPreferredWidth(400);
+
+			table.getColumnModel().getColumn(2).setPreferredWidth(100);
+			DefaultTableCellRenderer centerAlign = new DefaultTableCellRenderer();
+			centerAlign.setHorizontalAlignment(JLabel.CENTER);
+			table.getColumnModel().getColumn(2).setCellRenderer(centerAlign);
+
+			table.getColumnModel().getColumn(3).setPreferredWidth(80);
+			DefaultTableCellRenderer rightAlign = new DefaultTableCellRenderer();
+			rightAlign.setHorizontalAlignment(JLabel.RIGHT);
+			table.getColumnModel().getColumn(3).setCellRenderer(rightAlign);
+		}
+
+		public OperationTableForCats() {
+			super(new GridLayout(1, 1));
+
+			tm = new DefaultTableModel();
+			table = new JTable(tm);
+			table.setPreferredScrollableViewportSize(new Dimension(500, 300));
+			table.setFillsViewportHeight(true);
+
+			tablForCatsUpdater = getUpdaterFun();
+			
+			add(new JScrollPane(table));
+		}
+		
+		public Function1<Category,Integer> getUpdaterFun() {
+			return new Function1<Category,Integer>() {
+				@Override public Integer apply(Category c) {
+					reloadData(c);
+					return null;
+				}};
+		}
+	}
+	
+	@SuppressWarnings("serial")
+	public class TableWithCategories extends JPanel {
+		public JTable table;
+		private DefaultTableModel tm;
+
+		public Function0<Integer> getUpdaterThunk() {
+			return new Function0<Integer>() {
+				@Override public Integer apply() {
+					reloadData();
+					
+					return null;
+				}};
+		}
+		
+		public void reloadData() {
+			String[] colNames = { "Kategoria", "Bilans"};
+
+			Collection<Object[]> data = Utils.map2(new Function1<Category, Object[]>() {
+				@Override public Object[] apply(Category x) {
+					return new Object[] {x.description, x.balance};
+				}}, dm.getCategories());
+			
+			tm.setDataVector(data.toArray(new Object[data.size()][]), colNames);
+
+			table.getColumnModel().getColumn(0).setPreferredWidth(400);
+			
+			table.getColumnModel().getColumn(1).setPreferredWidth(100);
+			DefaultTableCellRenderer rightAlign = new DefaultTableCellRenderer();
+			rightAlign.setHorizontalAlignment(JLabel.RIGHT);
+			table.getColumnModel().getColumn(1).setCellRenderer(rightAlign);
+		}
+
+		public TableWithCategories() {
+			super(new GridLayout(1, 1));
+
+			tm = new DefaultTableModel();
+			table = new JTable(tm);
+			table.setPreferredScrollableViewportSize(new Dimension(500, 200));
+			table.setFillsViewportHeight(true);
+
+			reloadData();
+			updaters.add(getUpdaterThunk());
+			
+			add(new JScrollPane(table));
+		}
 	}
 
 	@SuppressWarnings("serial")
@@ -163,6 +314,14 @@ public class MainWindow {
 		private JTable table;
 		private DefaultTableModel tm;
 
+		public Function0<Integer> getUpdaterThunk() {
+			return new Function0<Integer>() {
+				@Override public Integer apply() {
+					reloadData();
+					return null;
+				}};
+		}
+		
 		public void reloadData() {
 			String[] colNames = { "Kategoria", "Opis", "Data", "Bilans"};
 			final Format formatter = new SimpleDateFormat("yyyy-MM-dd");
@@ -244,10 +403,10 @@ public class MainWindow {
 			table.setFillsViewportHeight(true);
 
 			reloadData();
+			updaters.add(getUpdaterThunk());
 
 			add(new JScrollPane(table));
 		}
-
 	}
 
 	private JFrame genAddOperationPane() {
@@ -336,7 +495,8 @@ public class MainWindow {
 					Category ctg = dm.getCategoryByName(descr);
 					Float flt = Float.parseFloat(tf.getText());
 					dm.createOperation(logged, ctg, (int) (flt * 100), (int) (flt * 100)+logged.balance, null, a.parse(dt.getText()), 0, null, 0, descr);
-					tableWithOperations.reloadData();
+					//tableWithOperations.reloadData();
+					Utils.evalAll(updaters);
 					ok = true;
 				} catch (SQLException e1) {
 					e1.printStackTrace();
@@ -393,6 +553,7 @@ public class MainWindow {
 			@Override public void actionPerformed(ActionEvent e) {
 				try {
 					dm.createOrGetCategory(logged, dtf.getText(), 0);
+					Utils.evalAll(updaters);
 				} catch (SQLException e1) {
 					e1.printStackTrace();
 					JOptionPane.showMessageDialog(loginFrame, "Błąd");
@@ -480,6 +641,7 @@ public class MainWindow {
 						Collections.reverse(lol);
 						for(Integer row : lol)
 							dm.removeOperationById(((Operation)dm.getOperations().toArray()[row]).id);
+						Utils.evalAll(updaters);
 					} catch (SQLException e1) {
 						e1.printStackTrace();
 					}
