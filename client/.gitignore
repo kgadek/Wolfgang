@@ -3,3 +3,4 @@
 *.db
 *.log
 *.lck
+*.log.*

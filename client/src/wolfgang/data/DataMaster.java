@@ -318,6 +318,10 @@ public class DataMaster {
 		}
 		return o;
 	}
+
+	public Operation removeOperationById(int id) throws SQLException {
+		return removeOperation(operations.get(id));
+	}
 	
 	public Operation removeOperation(Operation o) throws SQLException {
 		try {
