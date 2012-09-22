@@ -58,7 +58,7 @@ public class MainWindow {
 	private static JTextField passTextField;
 	public OperationTableForCats tableWithOperationsForCats;
 	public TableWithCategories tableWithCategories;
-	
+
 	private ArrayList<Function0<Integer>> updaters = new ArrayList<Function0<Integer>>();
 	public Utils.Function1<Category, Integer> tablForCatsUpdater;
 
@@ -66,7 +66,7 @@ public class MainWindow {
 		super();
 		dm = DataMaster.getInstance();
 	}
-	
+
 	public static void main(String[] args) {
 		javax.swing.SwingUtilities.invokeLater(new Runnable() {
 			@Override public void run() {
@@ -140,8 +140,8 @@ public class MainWindow {
 
 		JTabbedPane mainPane = new JTabbedPane();
 
-//		JComponent podsumowaniePane = genPodsumowaniePane();
-//		mainPane.addTab("Podsumowanie", podsumowaniePane);
+		//		JComponent podsumowaniePane = genPodsumowaniePane();
+		//		mainPane.addTab("Podsumowanie", podsumowaniePane);
 
 		JComponent operacjePane = genOperacjePane();
 		mainPane.addTab("Operacje", operacjePane);
@@ -151,7 +151,7 @@ public class MainWindow {
 
 		mainPane.setSelectedIndex(0);
 		mainFrame.add(mainPane);
-		
+
 		mainFrame.setSize(700, 500);
 		return mainFrame;
 	}
@@ -165,7 +165,7 @@ public class MainWindow {
 		JPanel ret = new JPanel(false);
 		GridBagLayout layout = new GridBagLayout();
 		ret.setLayout(layout);
-		
+
 		GridBagConstraints c = new GridBagConstraints();
 
 		tableWithCategories = new TableWithCategories();
@@ -175,10 +175,10 @@ public class MainWindow {
 		c.weighty = 50;
 		c.fill = GridBagConstraints.BOTH;
 		ret.add(tableWithCategories, c);
-		
+
 		JButton btn = new JButton("Wybierz");
 		c.gridy = 1;
-		c.weighty = 10;	
+		c.weighty = 0;	
 		c.fill = GridBagConstraints.LINE_END;
 		btn.addActionListener(new ActionListener() {
 			@Override
@@ -189,7 +189,7 @@ public class MainWindow {
 				tablForCatsUpdater.apply((Category) dm.getCategories().toArray()[row]);
 			}});
 		ret.add(btn,c);
-		
+
 		tableWithOperationsForCats = new OperationTableForCats();
 		c.gridy = 2;
 		c.weighty = 100;
@@ -198,7 +198,7 @@ public class MainWindow {
 
 		return ret;
 	}
-	
+
 	@SuppressWarnings("serial")
 	public class OperationTableForCats extends JPanel {
 		private JTable table;
@@ -249,10 +249,10 @@ public class MainWindow {
 			table.setFillsViewportHeight(true);
 
 			tablForCatsUpdater = getUpdaterFun();
-			
+
 			add(new JScrollPane(table));
 		}
-		
+
 		public Function1<Category,Integer> getUpdaterFun() {
 			return new Function1<Category,Integer>() {
 				@Override public Integer apply(Category c) {
@@ -261,7 +261,7 @@ public class MainWindow {
 				}};
 		}
 	}
-	
+
 	@SuppressWarnings("serial")
 	public class TableWithCategories extends JPanel {
 		public JTable table;
@@ -271,11 +271,11 @@ public class MainWindow {
 			return new Function0<Integer>() {
 				@Override public Integer apply() {
 					reloadData();
-					
+
 					return null;
 				}};
 		}
-		
+
 		public void reloadData() {
 			String[] colNames = { "Kategoria", "Bilans"};
 
@@ -283,11 +283,11 @@ public class MainWindow {
 				@Override public Object[] apply(Category x) {
 					return new Object[] {x.description, x.balance};
 				}}, dm.getCategories());
-			
+
 			tm.setDataVector(data.toArray(new Object[data.size()][]), colNames);
 
 			table.getColumnModel().getColumn(0).setPreferredWidth(400);
-			
+
 			table.getColumnModel().getColumn(1).setPreferredWidth(100);
 			DefaultTableCellRenderer rightAlign = new DefaultTableCellRenderer();
 			rightAlign.setHorizontalAlignment(JLabel.RIGHT);
@@ -304,7 +304,7 @@ public class MainWindow {
 
 			reloadData();
 			updaters.add(getUpdaterThunk());
-			
+
 			add(new JScrollPane(table));
 		}
 	}
@@ -321,7 +321,7 @@ public class MainWindow {
 					return null;
 				}};
 		}
-		
+
 		public void reloadData() {
 			String[] colNames = { "Kategoria", "Opis", "Data", "Bilans"};
 			final Format formatter = new SimpleDateFormat("yyyy-MM-dd");
@@ -430,95 +430,95 @@ public class MainWindow {
 					return false;
 				}}};
 
-		lbl = new JLabel("opis:");
-		c.gridy = 0;
-		c.gridx = 0;
-		c.weightx = 10;
-		c.weighty = 100;
-		c.fill = GridBagConstraints.HORIZONTAL;
-		frame.add(lbl,c);
+				lbl = new JLabel("opis:");
+				c.gridy = 0;
+				c.gridx = 0;
+				c.weightx = 10;
+				c.weighty = 100;
+				c.fill = GridBagConstraints.HORIZONTAL;
+				frame.add(lbl,c);
 
-		final JTextField dtf = new JTextField("");
-		c.gridx = 1;
-		c.weightx = 200;
-		frame.add(dtf,c); 
+				final JTextField dtf = new JTextField("");
+				c.gridx = 1;
+				c.weightx = 200;
+				frame.add(dtf,c); 
 
-		lbl = new JLabel("balans:");
-		c.gridy = 1;
-		c.gridx = 0;
-		c.weightx = 0;
-		frame.add(lbl,c);
+				lbl = new JLabel("balans:");
+				c.gridy = 1;
+				c.gridx = 0;
+				c.weightx = 0;
+				frame.add(lbl,c);
 
-		final JTextField tf = new JTextField("");
-		tf.setInputVerifier(verify_isfloat);
-		c.gridy = 1;
-		c.gridx = 1;
-		c.weightx = 200;
-		frame.add(tf,c);
+				final JTextField tf = new JTextField("");
+				tf.setInputVerifier(verify_isfloat);
+				c.gridy = 1;
+				c.gridx = 1;
+				c.weightx = 200;
+				frame.add(tf,c);
 
-		lbl = new JLabel("kategoria:");
-		c.gridy = 2;
-		c.gridx = 0;
-		c.weightx = 0;
-		frame.add(lbl,c);
+				lbl = new JLabel("kategoria:");
+				c.gridy = 2;
+				c.gridx = 0;
+				c.weightx = 0;
+				frame.add(lbl,c);
 
 
-		Collection<String> a = Utils.map2(new Function1<Category, String>() {
-			@Override public String apply(Category x) {
-				return String.valueOf( x.description );
-			}}, dm.getCategories());
+				Collection<String> a = Utils.map2(new Function1<Category, String>() {
+					@Override public String apply(Category x) {
+						return String.valueOf( x.description );
+					}}, dm.getCategories());
 
-		final JComboBox<String> cmbo_str = new JComboBox<String>(a.toArray(new String[] {}));
-		cmbo_str.setEditable(false);
-		c.gridx = 1;
-		c.weightx = 200;
-		frame.add(cmbo_str,c);
+				final JComboBox<String> cmbo_str = new JComboBox<String>(a.toArray(new String[] {}));
+				cmbo_str.setEditable(false);
+				c.gridx = 1;
+				c.weightx = 200;
+				frame.add(cmbo_str,c);
 
-		lbl = new JLabel("data:");
-		c.gridy = 3;
-		c.gridx = 0;
-		c.weightx = 0;
-		frame.add(lbl,c);
+				lbl = new JLabel("data:");
+				c.gridy = 3;
+				c.gridx = 0;
+				c.weightx = 0;
+				frame.add(lbl,c);
 
-		final JTextField dt = new JTextField(DateFormat.getDateInstance(DateFormat.MEDIUM).format(new Date()));
-		c.gridx = 1;
-		c.weightx = 200;
-		frame.add(dt,c);
+				final JTextField dt = new JTextField(DateFormat.getDateInstance(DateFormat.MEDIUM).format(new Date()));
+				c.gridx = 1;
+				c.weightx = 200;
+				frame.add(dt,c);
 
-		btn = new JButton("Dodaj operację");
-		btn.addActionListener(new ActionListener() {
-			@Override public void actionPerformed(ActionEvent e) {
-				boolean ok = false;
-				try {
-					DateFormat a = DateFormat.getDateInstance();
-					String descr = (String) cmbo_str.getSelectedObjects()[0];				
-					Category ctg = dm.getCategoryByName(descr);
-					Float flt = Float.parseFloat(tf.getText());
-					dm.createOperation(logged, ctg, (int) (flt * 100), (int) (flt * 100)+logged.balance, null, a.parse(dt.getText()), 0, null, 0, descr);
-					//tableWithOperations.reloadData();
-					Utils.evalAll(updaters);
-					ok = true;
-				} catch (SQLException e1) {
-					e1.printStackTrace();
-					JOptionPane.showMessageDialog(loginFrame, "Błąd");
-				} catch (ParseException e1) {
-					e1.printStackTrace();
-					JOptionPane.showMessageDialog(loginFrame, "Błąd: zła data");
-				}
-				if(ok)
-					frame.dispose();
-			}
-		});
-		c.gridy = 4;
-		c.gridx = 1;
-		c.weightx = 200;
-		c.fill = GridBagConstraints.LINE_END;
-		frame.add(btn, c);
+				btn = new JButton("Dodaj operację");
+				btn.addActionListener(new ActionListener() {
+					@Override public void actionPerformed(ActionEvent e) {
+						boolean ok = false;
+						try {
+							DateFormat a = DateFormat.getDateInstance();
+							String descr = (String) cmbo_str.getSelectedObjects()[0];				
+							Category ctg = dm.getCategoryByName(descr);
+							Float flt = Float.parseFloat(tf.getText());
+							dm.createOperation(logged, ctg, (int) (flt * 100), (int) (flt * 100)+logged.balance, null, a.parse(dt.getText()), 0, null, 0, descr);
+							//tableWithOperations.reloadData();
+							Utils.evalAll(updaters);
+							ok = true;
+						} catch (SQLException e1) {
+							e1.printStackTrace();
+							JOptionPane.showMessageDialog(loginFrame, "Błąd");
+						} catch (ParseException e1) {
+							e1.printStackTrace();
+							JOptionPane.showMessageDialog(loginFrame, "Błąd: zła data");
+						}
+						if(ok)
+							frame.dispose();
+					}
+				});
+				c.gridy = 4;
+				c.gridx = 1;
+				c.weightx = 200;
+				c.fill = GridBagConstraints.LINE_END;
+				frame.add(btn, c);
 
-		//frame.setSize(350, 400);
-		frame.setMinimumSize(new Dimension(350, 0));
-		frame.pack();
-		return frame;
+				//frame.setSize(350, 400);
+				frame.setMinimumSize(new Dimension(350, 0));
+				frame.pack();
+				return frame;
 	}	
 
 	private JFrame genAddCategoryPane() {
