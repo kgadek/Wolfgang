@@ -54,30 +54,18 @@ public class MainWindow {
 	public MainWindow() throws ClassNotFoundException, NoSuchAlgorithmException, SecurityException, SQLException, IOException {
 		super();
 		dm = DataMaster.getInstance();
-		System.out.println("Users:");
-		for(User u : dm.getUsers())
-			System.out.println("\t\t"+u);
-		System.out.println("Categories:");
-		for(Category c : dm.getCategories())
-			System.out.println("\t\t"+c);
-		System.out.println("Operations:");
-		for(Operation o : dm.getOperations())
-			System.out.println("\t\t"+o);
 	}
 
 	private static MainWindow mainWindow;
 	private static JFrame loginFrame;
-	private static JFrame mainFrame;
 	private static JTextField loginTextField;
 	private static JTextField passTextField;
 
 	public static void main(String[] args) {
 		javax.swing.SwingUtilities.invokeLater(new Runnable() {
-			@Override
-			public void run() {
+			@Override public void run() {
 				try {
 					mainWindow = new MainWindow();
-
 
 					loginFrame = new JFrame("Logowanie");
 					GridBagLayout gbl = new GridBagLayout();
@@ -98,19 +86,16 @@ public class MainWindow {
 						public void actionPerformed(ActionEvent e) {
 							if((mainWindow.logged = mainWindow.verifyUser(loginTextField.getText(), passTextField.getText())) != null) {
 								loginFrame.setVisible(false);
-								mainFrame = mainWindow.createMainWindow();
-								mainFrame.setVisible(true);
+								(mainWindow.createMainWindow()).setVisible(true);
 							} else
 								JOptionPane.showMessageDialog(loginFrame, "Błąd logowania");
-						}
-					});
+						}});
 					loginFrame.add(logMeIn, c);
 
 					JButton createUser = new JButton();
 					createUser.setText("Nowy");
 					createUser.addActionListener(new ActionListener() {
-						@Override
-						public void actionPerformed(ActionEvent e) {
+						@Override public void actionPerformed(ActionEvent e) {
 							if("".equals(loginTextField.getText()) || "".equals(passTextField.getText()))
 								JOptionPane.showMessageDialog(loginFrame, "Nie podano loginu i/lub hasła");
 							else {
@@ -119,16 +104,12 @@ public class MainWindow {
 										JOptionPane.showMessageDialog(loginFrame, "Błąd: taki użytkownik już istnieje");
 									else {
 										loginFrame.setVisible(false);
-										mainFrame = mainWindow.createMainWindow();
-										mainFrame.setVisible(true);
+										(mainWindow.createMainWindow()).setVisible(true);
 									}
 								} catch (SQLException e1) {
 									e1.printStackTrace();
 									JOptionPane.showMessageDialog(loginFrame, "Błąd:" + e1.getMessage());
-								}
-							}
-						}
-					});
+								}}}});
 					loginFrame.add(createUser);
 
 					loginFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -136,9 +117,7 @@ public class MainWindow {
 					loginFrame.setVisible(true);
 				} catch (Exception e) {
 					e.printStackTrace();
-				}
-			}
-		});
+				}}});
 	}
 
 	protected User createOrGetUser(String user, String password) throws SQLException {
@@ -167,7 +146,6 @@ public class MainWindow {
 		mainPane.setSelectedIndex(1);
 		mainFrame.add(mainPane);
 
-		//		mainFrame.pack();
 		mainFrame.setSize(700, 500);
 		return mainFrame;
 	}
@@ -188,7 +166,7 @@ public class MainWindow {
 		public void reloadData() {
 			String[] colNames = { "Kategoria", "Opis", "Data", "Bilans"};
 			final Format formatter = new SimpleDateFormat("yyyy-MM-dd");
-			
+
 			// filter -> sort -> map
 			List<Operation> res = (List<Operation>) wolfgang.utils.Utils.filter(dm.getOperations(), new Utils.Predicate<Operation>() {
 				@Override public boolean apply(Operation type) {
@@ -207,7 +185,6 @@ public class MainWindow {
 			tm.setDataVector(data.toArray(new Object[res.size()][]), colNames);
 
 			table.getColumnModel().getColumn(0).setPreferredWidth(100);
-
 			table.getColumnModel().getColumn(1).setPreferredWidth(400);
 
 			table.getColumnModel().getColumn(2).setPreferredWidth(100);
@@ -225,34 +202,36 @@ public class MainWindow {
 					return x + y.balance;
 				}}, new Integer(0), dm.getOperations());
 			lbl_balance.setText(String.valueOf(((float)(sum)) / 100.0)+"\n");
-			
-			
+
+
 			// ASCII ART!!
 			final int toTake = 5;
 			final int scale = 5;
 			Collection<Operation> recent = Utils.reverse_c(Utils.take(toTake, res));
-			int maxi = Utils.max(recent, new Function2<Integer, Operation, Integer>() {
+			Integer maxi = Utils.max(recent, new Function2<Integer, Operation, Integer>() {
 				@Override public Integer apply(Integer x, Operation y) {
 					if(x == null) return y.balance;
 					return y.balance > x ? y.balance : x;
 				}});
-			int mini = Utils.max(recent, new Function2<Integer, Operation, Integer>() {
+			Integer mini = Utils.max(recent, new Function2<Integer, Operation, Integer>() {
 				@Override public Integer apply(Integer x, Operation y) {
 					if(x == null) return y.balance;
 					return y.balance < x ? y.balance : x;
 				}});
-			for(int i=scale-1;i>=0;--i) {
-				for(Operation o : recent)
-					System.out.print(o.balance*1.0 > ((float)i*(maxi))/(10.0) ? "---" : "   ");
+			if(maxi != mini) {
+				for(int i=scale-1;i>=0;--i) {
+					for(Operation o : recent)
+						System.out.print(o.balance*1.0 > ((float)i*(maxi))/(10.0) ? "---" : "   ");
+					System.out.println();
+				}
+				for(@SuppressWarnings("unused") Operation o : recent)
+					System.out.print("===");
 				System.out.println();
-			}
-			for(@SuppressWarnings("unused") Operation o : recent)
-				System.out.print("===");
-			System.out.println();
-			for(int i=0;i<scale;++i) {
-				for(Operation o : recent)
-					System.out.print(o.balance*1.0 < ((float)i*(mini))/(10.0) ? "---" : "   ");
-				System.out.println();
+				for(int i=0;i<scale;++i) {
+					for(Operation o : recent)
+						System.out.print(o.balance*1.0 < ((float)i*(mini))/(10.0) ? "---" : "   ");
+					System.out.println();
+				}
 			}
 		}
 
@@ -290,32 +269,25 @@ public class MainWindow {
 					return true;
 				} catch (NumberFormatException e) {
 					return false;
-				}
-			}
-		};
+				}}};
 
 		lbl = new JLabel("opis:");
 		c.gridy = 0;
 		c.gridx = 0;
-		c.weightx = 0;
+		c.weightx = 10;
 		c.weighty = 100;
 		c.fill = GridBagConstraints.HORIZONTAL;
 		frame.add(lbl,c);
 
 		final JTextField dtf = new JTextField("");
-		c.gridy = 0;
 		c.gridx = 1;
 		c.weightx = 200;
-		c.weighty = 100;
-		c.fill = GridBagConstraints.HORIZONTAL;
 		frame.add(dtf,c); 
 
 		lbl = new JLabel("balans:");
 		c.gridy = 1;
 		c.gridx = 0;
 		c.weightx = 0;
-		c.weighty = 100;
-		c.fill = GridBagConstraints.HORIZONTAL;
 		frame.add(lbl,c);
 
 		final JTextField tf = new JTextField("");
@@ -323,48 +295,35 @@ public class MainWindow {
 		c.gridy = 1;
 		c.gridx = 1;
 		c.weightx = 200;
-		c.weighty = 100;
-		c.fill = GridBagConstraints.HORIZONTAL;
 		frame.add(tf,c);
 
 		lbl = new JLabel("kategoria:");
 		c.gridy = 2;
 		c.gridx = 0;
 		c.weightx = 0;
-		c.weighty = 100;
-		c.fill = GridBagConstraints.HORIZONTAL;
 		frame.add(lbl,c);
 
 
 		Collection<String> a = Utils.map2(new Function1<Category, String>() {
 			@Override public String apply(Category x) {
 				return String.valueOf( x.description );
-			}
-		}, dm.getCategories());
+			}}, dm.getCategories());
 
 		final JComboBox<String> cmbo_str = new JComboBox<String>(a.toArray(new String[] {}));
 		cmbo_str.setEditable(false);
-		c.gridy = 2;
 		c.gridx = 1;
 		c.weightx = 200;
-		c.weighty = 100;
-		c.fill = GridBagConstraints.HORIZONTAL;
 		frame.add(cmbo_str,c);
 
 		lbl = new JLabel("data:");
 		c.gridy = 3;
 		c.gridx = 0;
 		c.weightx = 0;
-		c.weighty = 100;
-		c.fill = GridBagConstraints.HORIZONTAL;
 		frame.add(lbl,c);
 
 		final JTextField dt = new JTextField(DateFormat.getDateInstance(DateFormat.MEDIUM).format(new Date()));
-		c.gridy = 3;
 		c.gridx = 1;
 		c.weightx = 200;
-		c.weighty = 100;
-		c.fill = GridBagConstraints.HORIZONTAL;
 		frame.add(dt,c);
 
 		btn = new JButton("Dodaj operację");
@@ -393,7 +352,6 @@ public class MainWindow {
 		c.gridy = 4;
 		c.gridx = 1;
 		c.weightx = 200;
-		c.weighty = 100;
 		c.fill = GridBagConstraints.LINE_END;
 		frame.add(btn, c);
 
@@ -440,8 +398,7 @@ public class MainWindow {
 					JOptionPane.showMessageDialog(loginFrame, "Błąd");
 				}
 				frame.dispose();
-			}
-		});
+			}});
 		c.gridy = 1;
 		c.gridx = 1;
 		c.weightx = 200;
@@ -490,8 +447,7 @@ public class MainWindow {
 		button.addActionListener(new ActionListener() {
 			@Override public void actionPerformed(ActionEvent e) {
 				genAddOperationPane().setVisible(true);
-			}
-		});
+			}});
 		inn.add(button, 0);
 
 
@@ -499,8 +455,7 @@ public class MainWindow {
 		button.addActionListener(new ActionListener() {
 			@Override public void actionPerformed(ActionEvent e) {
 				genAddCategoryPane().setVisible(true);
-			}
-		});
+			}});
 		inn.add(button, 1);
 
 		button = new JButton("Usuń operację");
@@ -517,7 +472,7 @@ public class MainWindow {
 				for (int k = 0; k < options.length; k++)
 					if (options[k].equals(obj))
 						result = k;
-				if(result == 1) {
+				if(result == 1)
 					try {
 						ArrayList<Integer> lol = new ArrayList<Integer>(); // lol bo tak trudno o reverse...
 						for(int row : tableWithOperations.table.getSelectedRows())
@@ -528,11 +483,9 @@ public class MainWindow {
 					} catch (SQLException e1) {
 						e1.printStackTrace();
 					}
-				}
 
 				tableWithOperations.reloadData();
-			}
-		});
+			}});
 		inn.add(button, 2);
 
 		c.gridy = 2;
