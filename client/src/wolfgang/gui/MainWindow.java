@@ -271,7 +271,6 @@ public class MainWindow {
 			return new Function0<Integer>() {
 				@Override public Integer apply() {
 					reloadData();
-
 					return null;
 				}};
 		}
@@ -279,9 +278,15 @@ public class MainWindow {
 		public void reloadData() {
 			String[] colNames = { "Kategoria", "Bilans"};
 
+			// map -> reduce+filter
 			Collection<Object[]> data = Utils.map2(new Function1<Category, Object[]>() {
-				@Override public Object[] apply(Category x) {
-					return new Object[] {x.description, x.balance};
+				@Override public Object[] apply(Category c) {
+					int sum = 0;
+					for(Operation o : dm.getOperations())
+						if(o.category.id == c.id)
+							sum += o.balance;
+					
+					return new Object[] {c.description, ((float)sum)/100.0};
 				}}, dm.getCategories());
 
 			tm.setDataVector(data.toArray(new Object[data.size()][]), colNames);
@@ -323,7 +328,7 @@ public class MainWindow {
 		}
 
 		public void reloadData() {
-			String[] colNames = { "Kategoria", "Opis", "Data", "Bilans"};
+			String[] colNames = { "Kategoria", "Opis", "Data", "Bilans", "Suma"};
 			final Format formatter = new SimpleDateFormat("yyyy-MM-dd");
 
 			// filter -> sort -> map
@@ -333,13 +338,14 @@ public class MainWindow {
 				}});
 			Collections.sort(res, new Comparator<Operation>() {
 				@Override public int compare(Operation o1, Operation o2) {
-					if(o1.dateStart == null || o2.dateStart == null) return -1;
-					return (int) (o2.dateStart.getTime() - o1.dateStart.getTime());
+					if(o1.dateStart == null || o2.dateStart == null) return 1;
+					return (int) (- o2.dateStart.getTime() + o1.dateStart.getTime());
 				}});
-			Collection<Object[]> data = Utils.map2(new Function1<Operation, Object[]>() {
-				@Override public Object[] apply(Operation o) {
-					return new Object[] { o.category.description, o.description, o.dateStart==null?"?":formatter.format(o.dateStart), ((float)o.balance)/100.0};
-				}}, res);
+			int balance = 0;
+			List<Object[]> data = new ArrayList<Object[]>(res.size());
+			for(Operation o : res)
+				data.add(new Object[] { o.category.description, o.description, o.dateStart==null?"?":formatter.format(o.dateStart), ((float)o.balance)/100.0, ((float)(balance+=o.balance))/100.0 });
+			Collections.reverse(data);
 
 			tm.setDataVector(data.toArray(new Object[res.size()][]), colNames);
 
@@ -355,12 +361,16 @@ public class MainWindow {
 			DefaultTableCellRenderer rightAlign = new DefaultTableCellRenderer();
 			rightAlign.setHorizontalAlignment(JLabel.RIGHT);
 			table.getColumnModel().getColumn(3).setCellRenderer(rightAlign);
+			
+			table.getColumnModel().getColumn(4).setPreferredWidth(80);
+			rightAlign.setHorizontalAlignment(JLabel.RIGHT);
+			table.getColumnModel().getColumn(4).setCellRenderer(rightAlign);
 
 			Integer sum = Utils.reduce(new Function2<Integer, Operation, Integer>() {
 				@Override public Integer apply(Integer x, Operation y) {
 					return x + y.balance;
 				}}, new Integer(0), dm.getOperations());
-			lbl_balance.setText(String.valueOf(((float)(sum)) / 100.0)+"\n");
+			lbl_balance.setText("Suma: "+String.valueOf(((float)(sum)) / 100.0));
 
 
 			// ASCII ART!!
@@ -582,7 +592,7 @@ public class MainWindow {
 		GridBagConstraints c = new GridBagConstraints();
 		JButton button;
 
-		lbl_balance = new JLabel("0.00");
+		lbl_balance = new JLabel("Suma: 0.00");
 
 		tableWithOperations = new OperationTable();
 		c.gridy = 0;
@@ -655,13 +665,6 @@ public class MainWindow {
 		c.fill = GridBagConstraints.NORTHWEST;
 		c.anchor = GridBagConstraints.FIRST_LINE_START;
 		ret.add(lbl_balance,c);
-
-		button = new JButton("lol11");
-		c.gridy = 2;
-		c.gridx = 1;
-		c.fill = GridBagConstraints.NORTHEAST;
-		c.anchor = GridBagConstraints.LAST_LINE_END;
-		ret.add(button,c);
 
 		return ret;
 	}
